@@ -1,0 +1,37 @@
+# Local Android SDK copy (536 MB)
+/android-sdk/
+
+# Gradle / Kotlin caches
+.gradle/
+.kotlin/
+
+# Build outputs
+build/
+publish-fd/
+publish-sc/
+pc/**/bin/
+pc/**/obj/
+
+# IDE
+.idea/
+*.iml
+.vs/
+
+# Local machine config
+local.properties
+*.user
+
+# Signing keys — NEVER commit
+keystore/
+keystore.properties
+*.jks
+*.keystore
+*.pfx
+*.p12
+
+# Logs
+error.log
+*.log
+
+# Node (tools)
+node_modules/

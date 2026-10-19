@@ -1,0 +1,25 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Apple-like dark palette (mirrors the Android app) -->
+    <SolidColorBrush x:Key="BgBrush" Color="#000000"/>
+    <SolidColorBrush x:Key="SidebarBrush" Color="#141416"/>
+    <SolidColorBrush x:Key="CardBrush" Color="#1C1C1E"/>
+    <SolidColorBrush x:Key="TextPrimary" Color="#F2F2F7"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="#98989E"/>
+    <SolidColorBrush x:Key="TextTertiary" Color="#636366"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#0A84FF"/>
+    <SolidColorBrush x:Key="AccentSoft" Color="#290A84FF"/>
+    <SolidColorBrush x:Key="GreenBrush" Color="#34C759"/>
+    <SolidColorBrush x:Key="GreenSoft" Color="#221C2E22"/>
+    <SolidColorBrush x:Key="RedBrush" Color="#FF453A"/>
+    <SolidColorBrush x:Key="OrangeBrush" Color="#FF9F0A"/>
+    <SolidColorBrush x:Key="SeparatorBrush" Color="#38383A"/>
+    <SolidColorBrush x:Key="HoverBrush" Color="#0FFFFFFF"/>
+    <SolidColorBrush x:Key="PressedBrush" Color="#1AFFFFFF"/>
+    <SolidColorBrush x:Key="NeutralSoft" Color="#2C2C2E"/>
+    <SolidColorBrush x:Key="InputBg" Color="#1AFFFFFF"/>
+    <SolidColorBrush x:Key="SwitchOffBrush" Color="#39393D"/>
+    <SolidColorBrush x:Key="OutlineBrush" Color="#545458A6"/>
+
+</ResourceDictionary>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- BufferSynk syncs over the local network / Tailscale with a token-authenticated
+         PC on a user-controlled LAN. Cleartext HTTP/WS is required for LAN IPs. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
