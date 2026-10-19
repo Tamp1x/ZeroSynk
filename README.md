@@ -1,40 +1,40 @@
 # ZeroSynk
 
-Синхронизация буфера обмена, файлов, уведомлений и медиа между Windows-ПК и Android-телефоном по локальной сети. Без облака: телефон — клиент (WebSocket/HTTP), ПК — сервер на порту **8765**. Тёмный интерфейс в духе Apple, весь UI на русском.
+Sync clipboard, files, notifications, and media between a Windows PC and an Android phone over your local network. No cloud involved: the phone is the client (WebSocket/HTTP), the PC runs the server on port **8765**. Dark Apple-style UI, fully localized in Russian.
 
-## Возможности
+## Features
 
-### ПК → телефон
-- **Буфер обмена** — текст из ПК мгновенно появляется на телефоне
-- **Файлы** — отправка через контекстное меню проводника «Отправить в ZeroSynk» (или трею), подтверждение в отдельном окне; работает и при закрытом приложении
-- **Управление медиа** — мини-плеер на телефоне: ⏮ ⏸ ⏭
+### PC → Phone
+- **Clipboard** — text copied on the PC instantly appears on the phone
+- **Files** — send via the file explorer context menu "Send to ZeroSynk" (or the tray), with a confirmation window; works even when the app is closed
+- **Media control** — mini player on the phone: ⏮ ⏸ ⏭
 
-### Телефон → ПК
-- **Буфер обмена** — текст с телефона попадает в буфер Windows
-- **Файлы и фото** — шаринг из любой приложения; мульти-выбор галереи поддерживается (одним батчем, чтобы автоочистка не удаляла соседние файлы)
-- **Уведомления** — уведомления телефона дублируются на ПК, с ответом прямо из пузыря (RemoteInput)
-- **Медиа** — управление воспроизведением с ПК
+### Phone → PC
+- **Clipboard** — text from the phone lands in the Windows clipboard
+- **Files and photos** — share from any app; multi-select from the gallery is supported (sent as a single batch so auto-cleanup never deletes neighboring files)
+- **Notifications** — phone notifications are mirrored to the PC with inline replies (RemoteInput)
+- **Media** — control playback from the PC
 
-### Общее
-- **Пары по QR / PIN** — сопряжение в один клик, токен хранится локально
-- **Кастомный тёмный трею** — OwnerDraw-меню в цветах приложения
-- **Плавающий pill-dock** навигация на Android
-- **Автоочистка старых файлов** — в папке сохранения остаётся только текущий набор отправки (настраивается: «Очищать старые файлы»)
-- **Стоп/старт синхронизации** с обеих сторон
-- История передач, порт/адрес/тема — в настройках
+### Common
+- **Pairing via QR / PIN** — one-click setup, token stored locally
+- **Custom dark tray** — OwnerDraw menu matching the app theme
+- **Floating pill-dock** navigation on Android
+- **Auto-cleanup of old files** — the save folder only keeps the current send batch (configurable: "Clean old files" toggle)
+- **Stop/start sync** from either side
+- Transfer history; port/address/theme in settings
 
-## Структура
+## Project layout
 
 ```
-pc/BufferSynk/     WPF-приложение (.NET 8, Kestrel, WebView-совместимый WS)
-android/           Android-клиент (Kotlin, Jetpack Compose, minSdk 26)
-tools/phone-sim.mjs  E2E-тесты протокола (18 проверок)
-PLAN.md            План развития и статус версий
+pc/BufferSynk/        WPF app (.NET 8, Kestrel, WebSocket)
+android/              Android client (Kotlin, Jetpack Compose, minSdk 26)
+tools/phone-sim.mjs   Protocol E2E tests (18 checks)
+PLAN.md               Roadmap and version status
 ```
 
-## Сборка
+## Building
 
-### ПК (Windows, нужен .NET SDK 8)
+### PC (Windows, .NET SDK 8 required)
 ```powershell
 dotnet publish "pc\BufferSynk\BufferSynk.csproj" -c Release -r win-x64 `
   --self-contained false -p:PublishSingleFile=true -o publish-fd
@@ -49,38 +49,38 @@ cd android
 # APK: android\app\build\outputs\apk\release\app-release.apk
 ```
 
-Подпись берётся из `android/keystore.properties` + `android/keystore/` (эти файлы намеренно не в git). Без них сборка идёт отладочной подписью.
+Release signing reads `android/keystore.properties` + `android/keystore/` (deliberately not in git). Without them the build falls back to the debug signature.
 
-### Тесты
+### Tests
 ```powershell
-# сначала запустите ZeroSynk.exe, затем:
+# start ZeroSynk.exe first, then:
 node tools\phone-sim.mjs 127.0.0.1 8765
 ```
-Ожидаемый результат: `18 passed, 0 failed`.
+Expected result: `18 passed, 0 failed`.
 
-## Протокол (v1, camelCase JSON)
+## Protocol (v1, camelCase JSON)
 
-| Эндпоинт | Назначение |
+| Endpoint | Purpose |
 |---|---|
-| `WS /ws?token=…` | Дуплексный канал: буфер обмена, статус, медиа, уведомления |
-| `POST /api/pair {pin}` | Сопряжение, выдаёт токен |
-| `POST /api/upload?token=…&name=…&batch=…` | Загрузка файла (`batch` — идентификатор набора отправки) |
-| `GET /api/file/{id}?token=…` | Скачивание файла с ПК |
-| `GET /api/ping` | Проверка доступности |
+| `WS /ws?token=…` | Duplex channel: clipboard, status, media, notifications |
+| `POST /api/pair {pin}` | Pairing, issues a token |
+| `POST /api/upload?token=…&name=…&batch=…` | File upload (`batch` = send-batch identifier) |
+| `GET /api/file/{id}?token=…` | Download a file from the PC |
+| `GET /api/ping` | Availability check |
 
-`batch` объединяет мульти-файловую отправку: автоочистка срабатывает только при приходе **нового** батча и не трогает файлы текущего.
+`batch` groups a multi-file send: auto-cleanup triggers only when a **new** batch arrives and never touches files of the current one.
 
-## Известные ограничения
+## Known limitations
 
-- Пересылка уведомлений **ПК → телефон** — заглушка (WinRT `UserNotificationListener` не проецируется без CsWinRT)
-- Пункт контекстного меню в Windows 11 появляется в «Показать дополнительные пункты» (для быстрого меню нужен COM IExplorerCommand + sparse package — в планах)
-- Работает только в одной локальной сети, интернет не требуется
+- PC → phone notification mirroring is a **stub** (WinRT `UserNotificationListener` isn't projected without CsWinRT)
+- On Windows 11 the context-menu entry appears under "Show more options" (the modern quick menu needs COM IExplorerCommand + a sparse package — on the roadmap)
+- Local network only; no internet required
 
-## Версии
+## Versions
 
-| Версия | Что нового |
+| Version | Highlights |
 |---|---|
-| 1.4.0 | Контекстное меню проводника, тёмный трею, pill-dock, мульти-отправка фото, автоочистка |
-| 1.3.0 | Уведомления телефон → ПК, стоп/старт синхронизации |
-| 1.2.0 | Медиа-плеер, история |
-| 1.0.0 | Буфер обмена, файлы, пары по QR/PIN |
+| 1.4.0 | Explorer context menu, dark tray, pill-dock, multi-photo send, auto-cleanup |
+| 1.3.0 | Notifications phone → PC, stop/start sync |
+| 1.2.0 | Media player, history |
+| 1.0.0 | Clipboard, files, QR/PIN pairing |
