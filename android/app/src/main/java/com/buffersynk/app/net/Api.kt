@@ -82,7 +82,9 @@ object Api {
     }
 
     /** Streams a content URI to the PC. [batch] groups multi-file sends so the PC
-     *  cleans up old files only when a new batch starts. Returns true on success. */
+     *  cleans up old files only when a new batch starts; [total] tells the PC how
+     *  many files to expect so it can show ONE notification per batch.
+     *  Returns true on success. */
     suspend fun upload(
         resolver: ContentResolver,
         host: String,
@@ -90,16 +92,19 @@ object Api {
         token: String,
         uri: Uri,
         batch: String? = null,
+        total: Int? = null,
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             val name = queryDisplayName(resolver, uri) ?: "file"
             val mime = resolver.getType(uri) ?: "application/octet-stream"
             val body = uriRequestBody(resolver, uri, mime)
             val batchPart = if (batch != null) "&batch=${Uri.encode(batch)}" else ""
-            val url = "http://$host:$port/api/upload?token=$token&name=${Uri.encode(name)}$batchPart"
+            val totalPart = if (total != null) "&total=$total" else ""
+            val url = "http://$host:$port/api/upload?token=$token&name=${Uri.encode(name)}$batchPart$totalPart"
             val req = Request.Builder().url(url).post(body).build()
             client.newCall(req).execute().use { it.isSuccessful }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.e("ZeroSynk", "upload error for $uri", e)
             false
         }
     }
@@ -110,15 +115,21 @@ object Api {
             .get()
             .build()
 
-    fun queryDisplayName(resolver: ContentResolver, uri: Uri): String? = try {
-        resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-            if (c.moveToFirst()) {
-                val i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (i >= 0) c.getString(i) else null
-            } else null
+    fun queryDisplayName(resolver: ContentResolver, uri: Uri): String? {
+        if (uri.scheme == "file") {
+            // Cache copies from ShareTargetActivity are named "<timestamp>_<original>"
+            return uri.lastPathSegment?.replaceFirst(Regex("^\\d+_"), "")
         }
-    } catch (_: Exception) {
-        null
+        return try {
+            resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                if (c.moveToFirst()) {
+                    val i = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (i >= 0) c.getString(i) else null
+                } else null
+            }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     fun uriRequestBody(resolver: ContentResolver, uri: Uri, mime: String): RequestBody {

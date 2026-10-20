@@ -78,16 +78,16 @@ class SyncService : Service() {
                 val uri = intent.data ?: return START_STICKY
                 // Own batch per single file: PC cleans older files when it arrives
                 val batch = java.util.UUID.randomUUID().toString()
-                scope.launch(Dispatchers.IO) { uploadFile(uri, batch) }
+                scope.launch(Dispatchers.IO) { uploadBatch(listOf(uri), batch) }
             }
             ACTION_SEND_URIS -> {
                 val list = intent.getStringArrayListExtra(EXTRA_URIS).orEmpty()
+                android.util.Log.d("ZeroSynk", "SEND_URIS: received ${list.size} uri(s)")
                 if (list.isNotEmpty()) {
                     // One batch for the whole multi-file send so the PC keeps all of them
                     val batch = java.util.UUID.randomUUID().toString()
-                    scope.launch(Dispatchers.IO) {
-                        for (s in list) uploadFile(Uri.parse(s), batch)
-                    }
+                    val uris = list.map { Uri.parse(it) }
+                    scope.launch(Dispatchers.IO) { uploadBatch(uris, batch) }
                 }
             }
             ACTION_SEND_CLIPBOARD_TEXT -> {
@@ -423,25 +423,93 @@ class SyncService : Service() {
 
     // ---- uploads (phone -> PC) ----
 
-    private suspend fun uploadFile(uri: Uri, batch: String? = null) {
+    /** Uploads one file. No notification here — callers show batch progress. */
+    private suspend fun uploadFile(uri: Uri, batch: String? = null, total: Int? = null): Boolean {
         val host = prefs.host
         val token = prefs.token
         if (host == null || token == null) {
             toast("Не подключено к ПК")
-            return
+            return false
         }
         val ok = try {
-            Api.upload(contentResolver, host, prefs.port, token, uri, batch)
+            Api.upload(contentResolver, host, prefs.port, token, uri, batch, total)
         } catch (_: Exception) {
             false
         }
         if (ok) {
             val name = Api.queryDisplayName(contentResolver, uri) ?: "файл"
             ServiceState.setEvent("Отправлено: $name")
-            notifyFiles("Отправлено на ПК: $name")
+            android.util.Log.d("ZeroSynk", "upload OK: $name ($uri)")
         } else {
-            notifyFiles("Не удалось отправить файл")
+            android.util.Log.e("ZeroSynk", "upload FAILED: $uri")
         }
+        // Cache copies made by ShareTargetActivity (grant died with the Activity) — drop them
+        if (uri.scheme == "file") {
+            try {
+                val path = uri.path ?: ""
+                if (path.contains("shared-out")) File(path).delete()
+            } catch (_: Exception) {}
+        }
+        return ok
+    }
+
+    /** Uploads a list of files, showing one progress notification "N из M". */
+    private suspend fun uploadBatch(uris: List<Uri>, batch: String) {
+        val total = uris.size
+        var done = 0
+        var failed = 0
+        for (uri in uris) {
+            if (uploadFile(uri, batch, total)) done++ else failed++
+            notifyUploadProgress(done + failed, total, failed, finished = false)
+        }
+        notifyUploadProgress(total, total, failed, finished = true)
+    }
+
+    private fun notifyUploadProgress(completed: Int, total: Int, failed: Int, finished: Boolean) {
+        try {
+            val openApp = PendingIntent.getActivity(
+                this, 0,
+                Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            val sent = total - failed
+            val text = when {
+                finished && failed == 0 && total == 1 -> "Отправлено на ПК"
+                finished && failed == 0 -> "Отправлено на ПК: ${pluralFiles(total)}"
+                finished -> "Отправлено ${sent} из $total, ошибок: $failed"
+                else -> "Отправка на ПК: $completed из $total"
+            }
+            val n = NotificationCompat.Builder(this, App.CHANNEL_FILES)
+                .setSmallIcon(R.drawable.ic_stat_sync)
+                .setContentTitle("ZeroSynk")
+                .setContentText(text)
+                .setContentIntent(openApp)
+                .setColor(if (finished && failed > 0) 0xFFE53935.toInt() else 0xFF0A84FF.toInt())
+                .setOnlyAlertOnce(true)
+                .apply {
+                    if (finished) {
+                        setAutoCancel(true)
+                    } else {
+                        setOngoing(true)
+                        setProgress(total, completed, false)
+                    }
+                }
+                .build()
+            NotificationManagerCompat.from(this).notify(UPLOAD_NOTIF_ID, n)
+        } catch (_: SecurityException) {
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun pluralFiles(n: Int): String {
+        val m10 = n % 10
+        val m100 = n % 100
+        val word = when {
+            m10 == 1 && m100 != 11 -> "файл"
+            m10 in 2..4 && m100 !in 12..14 -> "файла"
+            else -> "файлов"
+        }
+        return "$n $word"
     }
 
     // ---- media player notification (PC -> phone controls) ----
@@ -600,6 +668,7 @@ class SyncService : Service() {
         const val EXTRA_SYNC_ENABLED = "sync_enabled"
         private const val NOTIF_ID = 1
         private const val MEDIA_NOTIF_ID = 2
+        private const val UPLOAD_NOTIF_ID = 3
 
         @Volatile
         private var instance: SyncService? = null

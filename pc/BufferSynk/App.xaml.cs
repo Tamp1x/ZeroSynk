@@ -128,23 +128,25 @@ public partial class App : System.Windows.Application
                 TrayManager.ShowBalloon("ZeroSynk", "Работает в фоне. Дважды кликните по иконке в трее.");
         }
 
-        // Single-instance activation signal: drain queues or show the window
+        // Single-instance activation signal: drain queues or show the window.
+        // Keep listening for the app's whole lifetime: Explorer starts one process PER
+        // selected file, and exiting after the first signal lost every file after the first.
         _ = Task.Run(() =>
         {
             using var ev = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
             while (!_exitRequested)
             {
-                if (ev.WaitOne(1000)) break;
+                if (!ev.WaitOne(1000)) continue;
+                if (_exitRequested) break;
+                Dispatcher.BeginInvoke((Action)(() =>
+                {
+                    if (_mainWindow == null || _exitRequested) return;
+                    bool drained = DrainInteractiveQueue();
+                    if (DrainSendQueue()) drained = true;
+                    if (!drained)
+                        ShowMainWindow();
+                }));
             }
-            if (_exitRequested) return;
-            Dispatcher.BeginInvoke((Action)(() =>
-            {
-                if (_mainWindow == null || _exitRequested) return;
-                bool drained = DrainInteractiveQueue();
-                if (DrainSendQueue()) drained = true;
-                if (!drained)
-                    ShowMainWindow();
-            }));
         });
     }
 
@@ -173,28 +175,59 @@ public partial class App : System.Windows.Application
         catch { }
     }
 
+    private static List<string> ReadQueue(string dir)
+    {
+        var paths = new List<string>();
+        if (!Directory.Exists(dir)) return paths;
+        foreach (var q in Directory.GetFiles(dir, "*.path"))
+        {
+            try
+            {
+                var path = File.ReadAllText(q);
+                File.Delete(q);
+                if (File.Exists(path)) paths.Add(path);
+            }
+            catch { }
+        }
+        return paths;
+    }
+
     /// <summary>Shows SendWindow for queued interactive files. Returns true if any were shown.</summary>
+    private bool _drainBusy;
+
     private bool DrainInteractiveQueue()
     {
+        // Modal dialog pumps messages: a second signal must not open a stacked window.
+        // Files enqueued meanwhile stay in the dir and are picked up by the loop below.
+        if (_drainBusy) return true;
         try
         {
             if (!Directory.Exists(InteractiveQueueDir)) return false;
-            var paths = new List<string>();
-            foreach (var q in Directory.GetFiles(InteractiveQueueDir, "*.path"))
+            var shown = false;
+            _drainBusy = true;
+            try
             {
-                try
+                while (true)
                 {
-                    var path = File.ReadAllText(q);
-                    File.Delete(q);
-                    if (File.Exists(path)) paths.Add(path);
+                    var paths = ReadQueue(InteractiveQueueDir);
+                    if (paths.Count == 0) break;
+                    // Explorer starts one process per selected file with a small delay;
+                    // wait briefly so a multi-selection lands in ONE window.
+                    Thread.Sleep(400);
+                    var more = ReadQueue(InteractiveQueueDir);
+                    if (more.Count > 0)
+                        paths = paths.Union(more, StringComparer.OrdinalIgnoreCase).ToList();
+                    if (paths.Count == 0) break;
+                    shown = true;
+                    var win = new UI.SendWindow(paths);
+                    win.ShowDialog();
                 }
-                catch { }
             }
-            if (paths.Count == 0) return false;
-
-            var win = new UI.SendWindow(paths);
-            win.ShowDialog();
-            return true;
+            finally
+            {
+                _drainBusy = false;
+            }
+            return shown;
         }
         catch { return false; }
     }

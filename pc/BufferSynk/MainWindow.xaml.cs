@@ -51,10 +51,10 @@ public partial class MainWindow : Window
 
         _controller.Log += _ => { /* log sink: could be shown in UI later */ };
 
-        _controller.FileSaved += (path, sizeText) => Dispatcher.BeginInvoke(() =>
+        _controller.FileSaved += (title, body) => Dispatcher.BeginInvoke(() =>
         {
             if (App.Settings.ShowTrayIcon)
-                TrayManager.ShowBalloon("Файл получен", $"{System.IO.Path.GetFileName(path)} — {sizeText}");
+                TrayManager.ShowBalloon(title, body);
         });
 
         _controller.HistoryAdded += _ => { };

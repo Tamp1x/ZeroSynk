@@ -25,7 +25,7 @@ public sealed class AppController : IAsyncDisposable
     public event Action<string>? Log;
     public event Action<bool>? ClientPresence;      // true = phone connected
     public event Action<HistoryEntry>? HistoryAdded;
-    public event Action<string, string>? FileSaved; // (path, sizeText)
+    public event Action<string, string>? FileSaved; // (title, body) — raised ONCE per batch
     public event Action? SettingsSaved;
     public event Action<WsMessage>? NotifReceived;  // phone -> PC notification mirror
 
@@ -101,9 +101,7 @@ public sealed class AppController : IAsyncDisposable
                 Status = "received",
                 FilePath = file.Path,
             });
-            FileSaved?.Invoke(file.Path, SyncServer.FormatSize(file.Size));
-            if (Settings.PlaySound)
-                try { System.Media.SystemSounds.Exclamation.Play(); } catch { }
+            QueueFileNotification(file);
         };
 
         await Server.StartAsync(Settings);
@@ -401,6 +399,75 @@ public sealed class AppController : IAsyncDisposable
     private string? _currentBatchId;
     private readonly HashSet<string> _currentBatchFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly Queue<(string Id, List<string> Files)> _keptBatches = new();
+
+    // Batched "file received" notifications: ONE balloon + ONE sound per batch.
+    private sealed class NotifBatch
+    {
+        public readonly List<SyncServer.InboundFile> Files = new();
+        public int? Total;
+        public System.Threading.Timer? Timer;
+    }
+
+    private readonly object _notifLock = new();
+    private readonly Dictionary<string, NotifBatch> _pendingNotifs = new();
+
+    private void QueueFileNotification(SyncServer.InboundFile file)
+    {
+        // No batch id or no total (legacy/sim/single) => notify immediately.
+        if (file.Batch == null || file.Total == null)
+        {
+            NotifyFilesReceived(new[] { file });
+            return;
+        }
+        NotifBatch? flushNow = null;
+        lock (_notifLock)
+        {
+            if (!_pendingNotifs.TryGetValue(file.Batch, out var entry))
+            {
+                entry = new NotifBatch { Total = file.Total };
+                _pendingNotifs[file.Batch] = entry;
+            }
+            entry.Files.Add(file);
+            entry.Timer?.Dispose();
+            entry.Timer = null;
+            if (entry.Files.Count >= entry.Total.Value)
+            {
+                _pendingNotifs.Remove(file.Batch);
+                flushNow = entry;
+            }
+            else
+            {
+                // Fallback: flush what we have if the rest of the batch never arrives.
+                entry.Timer = new System.Threading.Timer(
+                    _ => FlushNotifBatch(file.Batch!), null, 5000, System.Threading.Timeout.Infinite);
+            }
+        }
+        if (flushNow != null) NotifyFilesReceived(flushNow.Files);
+    }
+
+    private void FlushNotifBatch(string batch)
+    {
+        NotifBatch? entry;
+        lock (_notifLock)
+        {
+            if (!_pendingNotifs.TryGetValue(batch, out entry)) return;
+            _pendingNotifs.Remove(batch);
+            entry.Timer?.Dispose();
+        }
+        NotifyFilesReceived(entry.Files);
+    }
+
+    private void NotifyFilesReceived(IReadOnlyList<SyncServer.InboundFile> files)
+    {
+        var totalSize = files.Sum(f => f.Size);
+        var title = files.Count == 1 ? "Файл получен" : "Получены файлы";
+        var body = files.Count == 1
+            ? $"{files[0].Name} — {SyncServer.FormatSize(totalSize)}"
+            : $"{files.Count} файлов — {SyncServer.FormatSize(totalSize)}";
+        FileSaved?.Invoke(title, body);
+        if (Settings.PlaySound)
+            try { System.Media.SystemSounds.Exclamation.Play(); } catch { }
+    }
 
     private void TrackReceivedBatch(SyncServer.InboundFile file)
     {

@@ -45,7 +45,7 @@ public sealed class SyncServer : IAsyncDisposable
 
     public sealed record ClientInfo(string Id, string Name, string RemoteIp);
     public sealed record OutboxFile(string Id, string Name, string Path, long Size);
-    public sealed record InboundFile(string Name, string Path, long Size, string? Batch);
+    public sealed record InboundFile(string Name, string Path, long Size, string? Batch, int? Total);
 
     private sealed class ClientConn
     {
@@ -136,6 +136,8 @@ public sealed class SyncServer : IAsyncDisposable
             var name = ctx.Request.Query["name"].FirstOrDefault() ?? "file.bin";
             name = SanitizeFileName(name);
             var batch = ctx.Request.Query["batch"].FirstOrDefault();
+            var totalRaw = ctx.Request.Query["total"].FirstOrDefault();
+            int? total = int.TryParse(totalRaw, out var t) && t > 0 ? t : null;
             var folder = settingsRef.SaveFolder;
             Directory.CreateDirectory(folder);
 
@@ -153,7 +155,7 @@ public sealed class SyncServer : IAsyncDisposable
             }
 
             Log?.Invoke($"Received file: {name} ({FormatSize(size)})");
-            FileReceived?.Invoke(new InboundFile(name, dest, size, batch));
+            FileReceived?.Invoke(new InboundFile(name, dest, size, batch, total));
             return Results.Json(new { ok = true, name = Path.GetFileName(dest), size }, Protocol.Json);
         });
 
