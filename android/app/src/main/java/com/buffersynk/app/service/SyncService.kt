@@ -188,9 +188,10 @@ class SyncService : Service() {
             "ZeroSynk" to "Синхронизация остановлена"
         } else when (val c = ServiceState.conn.value) {
             is Conn.Connected -> "Подключено к ${c.pcName}" to "Синхронизация активна"
-            is Conn.Connecting -> "ZeroSynk" to "Подключение…"
             is Conn.AuthFailed -> "Авторизация отклонена" to "Переподключитесь в приложении"
-            Conn.Disconnected -> "ZeroSynk" to if (prefs.paired) "Нет подключения — повтор…" else "Не подключено"
+            // Stable text for Connecting/Disconnected/unpaired: one message, no
+            // flicker between variants — MIUI alerts on every text change.
+            else -> "ZeroSynk" to "Не подключено к ПК"
         }
 
         val builder = NotificationCompat.Builder(this, App.CHANNEL_SYNC)
@@ -213,9 +214,19 @@ class SyncService : Service() {
         return builder.build()
     }
 
-    private fun refreshNotification() {
+    @Volatile private var lastNotifSig: String? = null
+
+    private fun refreshNotification(force: Boolean = false) {
         try {
-            NotificationManagerCompat.from(this).notify(NOTIF_ID, buildNotification())
+            val n = buildNotification()
+            // MIUI/HyperOS alert on every re-post even with setOnlyAlertOnce when
+            // the content changes — skip identical updates (reconnect loop, pings).
+            val title = n.extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: ""
+            val text = n.extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
+            val sig = "$title|$text"
+            if (!force && sig == lastNotifSig) return
+            lastNotifSig = sig
+            NotificationManagerCompat.from(this).notify(NOTIF_ID, n)
         } catch (_: SecurityException) {
         } catch (_: Exception) {
         }
@@ -281,7 +292,7 @@ class SyncService : Service() {
             val json = ProtoJson.encodeToString(WsMessage.serializer(), Protocol.ping())
             ws?.send(json)
             // Re-assert the ongoing notification: some OEMs (HyperOS) silently drop it.
-            refreshNotification()
+            refreshNotification(force = true)
             schedulePing()
         }
         pingRunnable = r
