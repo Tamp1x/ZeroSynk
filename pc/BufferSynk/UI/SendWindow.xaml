@@ -36,12 +36,29 @@
                     <TextBlock x:Name="SubText" Style="{StaticResource Caption}" Text="Выбранные файлы"/>
                 </StackPanel>
                 <Button Grid.Column="2" x:Name="CloseBtn" Click="OnCancel"
-                        Width="28" Height="28" Padding="0" Margin="8,0,0,0"
+                        Width="30" Height="30" Padding="0" Margin="8,0,0,0"
                         VerticalAlignment="Top" HorizontalAlignment="Right"
-                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                        BorderThickness="0" Cursor="Hand"
+                        FocusVisualStyle="{x:Null}"
                         ToolTip="Закрыть">
-                    <TextBlock Text="✕" FontSize="13" Foreground="{DynamicResource TextSecondary}"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd" Background="Transparent" CornerRadius="6">
+                                <TextBlock x:Name="X" Text="✕" FontSize="13"
+                                           Foreground="{DynamicResource TextSecondary}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource InputBg}"/>
+                                    <Setter TargetName="X" Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource CardBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
                 </Button>
             </Grid>
 
