@@ -22,6 +22,13 @@ public partial class SendWindow : Window
             : $"{names.Count} файлов";
 
         Loaded += (_, _) => SendBtn.Focus();
+
+        // No title bar — drag from anywhere except interactive elements
+        MouseLeftButtonDown += (_, e) =>
+        {
+            if (e.OriginalSource is System.Windows.Controls.Button) return;
+            try { DragMove(); } catch { }
+        };
     }
 
     private void OnSend(object sender, RoutedEventArgs e)
