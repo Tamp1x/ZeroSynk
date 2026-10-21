@@ -74,7 +74,11 @@ public partial class App : System.Windows.Application
         {
             var exePath = Environment.ProcessPath;
             if (!string.IsNullOrEmpty(exePath))
+            {
                 ContextMenuService.Register(exePath);
+                // Start menu shortcut so the app is findable via Windows Search
+                StartMenuService.Register(exePath);
+            }
         }
 
         DispatcherUnhandledException += (_, args) =>
