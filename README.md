@@ -57,6 +57,8 @@ $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-17.0.20.101-hotspot"
 cd android
 .\gradlew assembleRelease --no-daemon
 # APK: android\app\build\outputs\apk\release\app-release.apk
+# Copy versioned release APK beside the previous releases:
+Copy-Item app\build\outputs\apk\release\app-release.apk ..\ZeroSynk-1.6.0.apk
 ```
 
 Release signing reads `android/keystore.properties` + `android/keystore/` (deliberately not in git). Without them the build falls back to the debug signature.
