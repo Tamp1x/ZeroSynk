@@ -12,6 +12,8 @@ publish-sc/
 /release-assets/
 /ZeroSynk-Setup.exe
 /ZeroSynk-Windows-x64.zip
+tools/installer/bin/
+tools/installer/obj/
 pc/**/bin/
 pc/**/obj/
 
