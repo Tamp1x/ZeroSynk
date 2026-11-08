@@ -37,9 +37,9 @@ Sync clipboard, files, notifications, and media between a Windows PC and an Andr
 
 ```
 pc/ZeroSynk/        WPF app (.NET 8, Kestrel, WebSocket)
+pc/ZeroSynk.ShellExtension/ Windows 11 Explorer COM command
 android/              Android client (Kotlin, Jetpack Compose, minSdk 26)
 tools/phone-sim.mjs   Protocol E2E tests (18 checks)
-PLAN.md               Roadmap and version status
 ```
 
 ## Building
@@ -62,6 +62,12 @@ Copy-Item app\build\outputs\apk\release\app-release.apk ..\ZeroSynk-1.6.0.apk
 ```
 
 Release signing reads `android/keystore.properties` + `android/keystore/` (deliberately not in git). Without them the build falls back to the debug signature.
+
+### Windows installer release assets
+```powershell
+.\tools\build-installer.ps1
+```
+Upload `release-assets\ZeroSynk-Setup.exe` and `release-assets\ZeroSynk-Windows-x64.zip` to each GitHub Release. The setup fetches the package from the latest published release, verifies GitHub's SHA-256 digest when available, installs it per-user, and creates a Start menu shortcut. It installs the .NET 8 Desktop Runtime once if it is missing. Upload the Android APK separately as `ZeroSynk-<version>.apk`.
 
 ### Tests
 ```powershell

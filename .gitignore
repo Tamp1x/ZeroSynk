@@ -9,6 +9,9 @@
 build/
 publish-fd/
 publish-sc/
+/release-assets/
+/ZeroSynk-Setup.exe
+/ZeroSynk-Windows-x64.zip
 pc/**/bin/
 pc/**/obj/
 
