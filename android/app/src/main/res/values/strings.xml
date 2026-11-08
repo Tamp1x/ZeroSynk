@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">ZeroSynk</string>
+    <string name="app_name_onyx">OnyxSynk</string>
+    <string name="app_name_eclipx">Eclipx</string>
 </resources>

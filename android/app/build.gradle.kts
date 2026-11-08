@@ -12,15 +12,15 @@ val keystoreProps: Properties? = rootProject.file("keystore.properties").takeIf 
 }
 
 android {
-    namespace = "com.buffersynk.app"
+    namespace = "com.zerosynk.app"
     compileSdk = 35
 
     defaultConfig {
         applicationId = "com.buffersynk.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.4.0"
+        versionCode = 9
+        versionName = "1.5.0"
     }
 
     signingConfigs {

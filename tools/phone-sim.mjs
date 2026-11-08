@@ -1,4 +1,4 @@
-// BufferSynk phone simulator — E2E test client for the PC server.
+﻿// ZeroSynk phone simulator — E2E test client for the PC server.
 // Run: node phone-sim.mjs [host] [port]
 import { readFileSync, existsSync, writeFileSync, unlinkSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
@@ -7,7 +7,7 @@ import { join } from "node:path";
 const host = process.argv[2] || "127.0.0.1";
 const port = parseInt(process.argv[3] || "8765", 10);
 const base = `http://${host}:${port}`;
-const settingsPath = join(process.env.APPDATA || join(homedir(), "AppData", "Roaming"), "BufferSynk", "settings.json");
+const settingsPath = join(process.env.APPDATA || join(homedir(), "AppData", "Roaming"), "ZeroSynk", "settings.json");
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra = "") => {
@@ -17,7 +17,7 @@ const ok = (name, cond, extra = "") => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
-  console.log(`== BufferSynk E2E against ${base} ==`);
+  console.log(`== ZeroSynk E2E against ${base} ==`);
 
   // 0. ping
   const ping = await (await fetch(`${base}/api/ping`)).json();
@@ -65,7 +65,7 @@ async function main() {
   const clipText = "Привет с телефона " + Date.now();
   ws.send(JSON.stringify({ type: "clipboard", kind: "text", text: clipText, hash: "simhash1" }));
   await sleep(700);
-  const histPath = join(process.env.APPDATA, "BufferSynk", "history.json");
+  const histPath = join(process.env.APPDATA, "ZeroSynk", "history.json");
   const hist = existsSync(histPath) ? JSON.parse(readFileSync(histPath, "utf8")) : { entries: [] };
   ok("clipboard text landed in PC history",
     hist.entries.some((e) => e.preview && clipText.startsWith(e.preview.slice(0, 20)) && e.direction === "fromPhone"),
