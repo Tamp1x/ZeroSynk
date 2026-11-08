@@ -91,13 +91,14 @@ Media messages are bidirectional: `media` carries `state`, `title`, `artist`, `a
 - PC → phone notification mirroring is a **stub** (WinRT `UserNotificationListener` isn't projected without CsWinRT)
 - No "favorite/like" in the media player: Windows SMTC exposes no such API
 - Reverse media control (phone → PC card) relies on notification access; players that don't publish a MediaSession won't show up
-- On Windows 11 the context-menu entry appears under "Show more options" (the modern quick menu needs COM IExplorerCommand + a sparse package — on the roadmap)
+- Windows 11 Explorer integration uses a per-user COM IExplorerCommand handler for the modern context menu; the classic menu entry remains available too
 - Local network only; no internet required
 
 ## Versions
 
 | Version | Highlights |
 |---|---|
+| 1.6.0 | Android history, widget, Quick Settings tile, screenshot sync, English locale, APK updater; Windows 11 modern context menu |
 | 1.5.0 | Rounded QR-code corners in the Windows app |
 | 1.4.0 | Explorer context menu, dark tray, pill-dock, multi-photo send, auto-cleanup |
 | 1.3.0 | Notifications phone → PC, stop/start sync |
