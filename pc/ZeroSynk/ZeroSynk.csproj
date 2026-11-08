@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -25,7 +25,14 @@
 
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.6.0" />
+    <ProjectReference Include="..\ZeroSynk.ShellExtension\ZeroSynk.ShellExtension.csproj" />
   </ItemGroup>
+
+  <Target Name="CopyShellExtensionComHost" AfterTargets="Build">
+    <Copy SourceFiles="..\ZeroSynk.ShellExtension\bin\$(Configuration)\net8.0-windows\ZeroSynk.ShellExtension.comhost.dll;..\ZeroSynk.ShellExtension\bin\$(Configuration)\net8.0-windows\ZeroSynk.ShellExtension.deps.json;..\ZeroSynk.ShellExtension\bin\$(Configuration)\net8.0-windows\ZeroSynk.ShellExtension.runtimeconfig.json"
+          DestinationFolder="$(OutputPath)"
+          Condition="Exists('..\ZeroSynk.ShellExtension\bin\$(Configuration)\net8.0-windows\ZeroSynk.ShellExtension.comhost.dll')" />
+  </Target>
 
   <ItemGroup>
     <Resource Include="Assets\icon.ico" />
