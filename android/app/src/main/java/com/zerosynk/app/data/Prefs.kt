@@ -85,6 +85,22 @@ class Prefs private constructor(context: Context) {
         get() = sp.getString("pw", null)
         set(v) { sp.edit().putString("pw", v).apply() }
 
+    var featureTourShown: Boolean
+        get() = sp.getBoolean("featureTourShown", false)
+        set(v) { sp.edit().putBoolean("featureTourShown", v).apply() }
+
+    var screenshotSync: Boolean
+        get() = sp.getBoolean("screenshotSync", false)
+        set(v) { sp.edit().putBoolean("screenshotSync", v).apply() }
+
+    var lastWhatsNewVersion: String
+        get() = sp.getString("lastWhatsNewVersion", "") ?: ""
+        set(v) { sp.edit().putString("lastWhatsNewVersion", v).apply() }
+
+    var language: String
+        get() = sp.getString("language", "ru") ?: "ru"
+        set(v) { sp.edit().putString("language", if (v == "en") "en" else "ru").apply() }
+
     /** One-shot guard: WRITE_EXTERNAL_STORAGE was already requested (API 26–28). */
     var writePermAsked: Boolean
         get() = sp.getBoolean("writePermAsked", false)

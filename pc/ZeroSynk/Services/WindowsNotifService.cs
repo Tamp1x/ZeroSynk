@@ -1,4 +1,5 @@
-﻿using Windows.UI.Notifications;
+using Windows.UI.Notifications;
+using Windows.UI.Notifications.Management;
 using ZeroSynk.Models;
 
 namespace ZeroSynk.Services;
@@ -20,7 +21,7 @@ public sealed class WindowsNotifService : IDisposable
 
     public bool IsRunning { get; private set; }
 
-    public bool HasAccess => _listener?.AccessStatus == UserNotificationAccessStatus.Allowed;
+    public bool HasAccess => _listener?.GetAccessStatus() == UserNotificationListenerAccessStatus.Allowed;
 
     public WindowsNotifService(AppController controller)
     {
@@ -31,9 +32,9 @@ public sealed class WindowsNotifService : IDisposable
     {
         try
         {
-            _listener ??= UserNotificationListener.Default;
+            _listener ??= UserNotificationListener.Current;
             var status = await _listener.RequestAccessAsync();
-            var ok = status == UserNotificationAccessStatus.Allowed;
+            var ok = status == UserNotificationListenerAccessStatus.Allowed;
             AccessRequested?.Invoke(ok
                 ? "Доступ к уведомлениям Windows получен — зеркало включено."
                 : "Система не выдала доступ к уведомлениям. Разрешите его в «Параметры → " +
@@ -53,8 +54,8 @@ public sealed class WindowsNotifService : IDisposable
     {
         try
         {
-            _listener ??= UserNotificationListener.Default;
-            if (_listener.AccessStatus != UserNotificationAccessStatus.Allowed)
+            _listener ??= UserNotificationListener.Current;
+            if (_listener.GetAccessStatus() != UserNotificationListenerAccessStatus.Allowed)
             {
                 Log?.Invoke("Not mirroring: notification access has not been granted yet.");
                 return Task.FromResult(false);
@@ -90,22 +91,23 @@ public sealed class WindowsNotifService : IDisposable
     {
         try
         {
-            var n = args.UserNotification;
-            if (n == null) return;
-            var key = $"win:{n.Id}";
+            var key = $"win:{args.UserNotificationId}";
 
-            if (args.ChangeType == UserNotificationChangedType.Removed)
+            if (args.ChangeKind == UserNotificationChangedKind.Removed)
             {
                 _ = _controller.Server.BroadcastNotifAsync(WsMessage.NotifRemoved(key));
                 return;
             }
 
-            var texts = n.Notification?.Visual?.GetTexts();
+            var n = sender.GetNotification(args.UserNotificationId);
+            if (n == null) return;
+            var binding = n.Notification?.Visual?.GetBinding(KnownNotificationBindings.ToastGeneric);
+            var texts = binding?.GetTextElements();
             var title = texts is { Count: > 0 } ? texts[0].Text ?? "" : "";
             var body = texts is { Count: > 1 } ? texts[1].Text ?? "" : "";
             if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(body)) return;
 
-            var appName = n.AppInfo?.DisplayName ?? "Windows";
+            var appName = n.AppInfo?.DisplayInfo?.DisplayName ?? "Windows";
             // Never mirror our own toasts back to the phone.
             if (string.Equals(appName, DesignService.Current, StringComparison.OrdinalIgnoreCase)) return;
 

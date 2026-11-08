@@ -12,6 +12,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.zerosynk.app.data.Prefs
 import com.zerosynk.app.design.Design
+import com.zerosynk.app.send.ClipWidget
 import com.zerosynk.app.ui.ZeroSynkRoot
 import com.zerosynk.app.ui.theme.ZeroSynkTheme
 import com.google.zxing.integration.android.IntentIntegrator
@@ -33,6 +34,11 @@ class MainActivity : ComponentActivity() {
             }
         }
         maybeEmit(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        ClipWidget.refresh(this)
     }
 
     /**

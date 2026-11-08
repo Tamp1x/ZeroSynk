@@ -28,6 +28,8 @@ data class MediaInfo(
 )
 
 object ServiceState {
+    private val _pingMs = MutableStateFlow<Long?>(null)
+    val pingMs: StateFlow<Long?> = _pingMs
     private val _conn = MutableStateFlow<Conn>(Conn.Disconnected)
     val conn: StateFlow<Conn> = _conn
 
@@ -65,4 +67,6 @@ object ServiceState {
     fun setMedia(info: MediaInfo?) {
         _media.value = info
     }
+
+    fun setPing(value: Long?) { _pingMs.value = value }
 }

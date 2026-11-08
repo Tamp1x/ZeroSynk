@@ -203,6 +203,10 @@
                     <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0"
                                Text="Синхронизация буфера обмена и файлов по локальной сети/Tailscale. Трафик шифруется Tailscale, авторизация — токеном."/>
                     <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                        <Button Style="{StaticResource SecondaryButton}" Content="Диагностика"
+                                Click="OnDiagnostics" Margin="0,0,10,0"/>
+                        <Button Style="{StaticResource SecondaryButton}" Content="Релизы / обновления"
+                                Click="OnOpenReleases" Margin="0,0,10,0"/>
                         <Button Style="{StaticResource SecondaryButton}" Content="Копировать токен"
                                 Click="OnCopyToken" Margin="0,0,10,0"/>
                         <Button Style="{StaticResource SecondaryButton}" Content="Сбросить пару"

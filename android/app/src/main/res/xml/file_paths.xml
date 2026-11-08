@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <cache-path name="clip" path="clip/" />
+    <cache-path name="screenshots" path="screenshots/" />
+    <cache-path name="updates" path="updates/" />
     <!-- Resumed downloads live here as <fileId>.part until they are complete. -->
     <cache-path name="dl" path="dl/" />
     <!-- Pre-Android-10 downloads: lets the «Открыть» action hand the file to another app. -->

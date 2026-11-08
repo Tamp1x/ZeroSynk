@@ -252,6 +252,57 @@ public partial class SettingsPage : System.Windows.Controls.UserControl
         catch { }
     }
 
+    private void OnDiagnostics(object sender, RoutedEventArgs e)
+    {
+        var logView = new System.Windows.Controls.TextBox
+        {
+            Text = _controller.ReadRecentLogs(),
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            AcceptsTab = true,
+            TextWrapping = TextWrapping.NoWrap,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+            Margin = new Thickness(12),
+        };
+        var window = new Window
+        {
+            Title = "Диагностика ZeroSynk",
+            Owner = Window.GetWindow(this),
+            Width = 820,
+            Height = 560,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = logView,
+        };
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        timer.Tick += (_, _) =>
+        {
+            var latest = _controller.ReadRecentLogs();
+            if (latest == logView.Text) return;
+            logView.Text = latest;
+            logView.CaretIndex = logView.Text.Length;
+            logView.ScrollToEnd();
+        };
+        window.Closed += (_, _) => timer.Stop();
+        timer.Start();
+        window.ShowDialog();
+    }
+
+    private void OnOpenReleases(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                "https://github.com/Tamp1x/ZeroSynk/releases/latest") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"Не удалось открыть страницу релизов: {ex.Message}",
+                "ZeroSynk", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
     private void OnResetPair(object sender, RoutedEventArgs e)
     {
         if (System.Windows.MessageBox.Show(

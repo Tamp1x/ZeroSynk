@@ -31,6 +31,9 @@ public sealed class AppController : IAsyncDisposable
     public event Action? SettingsSaved;
     public event Action<WsMessage>? NotifReceived;  // phone -> PC notification mirror
     public event Action<WsMessage>? PhoneMediaReceived; // phone -> PC "now playing" (reverse control)
+    public event Action<int, bool>? PhoneBatteryChanged;
+    public int? PhoneBatteryLevel { get; private set; }
+    public bool PhoneCharging { get; private set; }
 
     public AppController(AppSettings settings)
     {
@@ -41,6 +44,18 @@ public sealed class AppController : IAsyncDisposable
     }
 
     private static readonly object _logLock = new();
+
+    public string ReadRecentLogs()
+    {
+        try
+        {
+            var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ZeroSynk", "debug.log");
+            if (!File.Exists(path)) return "Лог пока пуст";
+            var lines = File.ReadAllLines(path);
+            return string.Join(Environment.NewLine, lines.TakeLast(300));
+        }
+        catch (Exception ex) { return $"Не удалось прочитать лог: {ex.Message}"; }
+    }
 
     private static void WriteFileLog(string msg)
     {
@@ -219,6 +234,16 @@ public sealed class AppController : IAsyncDisposable
                     RecordNotif(msg);
                     break;
 
+                case "location" when !string.IsNullOrWhiteSpace(msg.Location):
+                    OpenSharedLocation(msg.Location!);
+                    break;
+
+                case "phoneStatus" when msg.BatteryLevel is >= 0 and <= 100:
+                    PhoneBatteryLevel = msg.BatteryLevel;
+                    PhoneCharging = msg.Charging == true;
+                    PhoneBatteryChanged?.Invoke(PhoneBatteryLevel.Value, PhoneCharging);
+                    break;
+
                 case "notifReply":
                     Log?.Invoke($"notif reply from phone for key {msg.Key}");
                     // Windows exposes no public API to inject a reply into the target
@@ -253,6 +278,26 @@ public sealed class AppController : IAsyncDisposable
         {
             Log?.Invoke($"HandlePhoneMessage error: {ex.Message}");
         }
+    }
+
+    private void OpenSharedLocation(string value)
+    {
+        // Accept only a geo URI or a maps URL received through Android's share sheet.
+        var isGeo = value.StartsWith("geo:", StringComparison.OrdinalIgnoreCase);
+        var trustedMapsUrl = Uri.TryCreate(value, UriKind.Absolute, out var parsed) &&
+            parsed.Scheme == Uri.UriSchemeHttps &&
+            new[] { "maps.google.com", "www.google.com", "maps.app.goo.gl" }
+                .Contains(parsed.Host, StringComparer.OrdinalIgnoreCase);
+        if (value.Length > 2048 || !(isGeo || trustedMapsUrl)) return;
+        try
+        {
+            var target = isGeo
+                ? "https://www.google.com/maps/search/?api=1&query=" + Uri.EscapeDataString(value[4..])
+                : value;
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true });
+            StatusChanged?.Invoke("Местоположение открыто в браузере");
+        }
+        catch (Exception ex) { Log?.Invoke($"open shared location failed: {ex.Message}"); }
     }
 
     /// <summary>Control the phone's media player from the PC (reverse direction).</summary>

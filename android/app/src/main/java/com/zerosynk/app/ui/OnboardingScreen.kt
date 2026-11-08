@@ -18,12 +18,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import androidx.compose.material3.Text as MaterialText
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -42,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zerosynk.app.design.Design
+import com.zerosynk.app.data.Prefs
 import com.zerosynk.app.net.PairingCtl
 import com.google.zxing.integration.android.IntentIntegrator
 import kotlinx.coroutines.delay
@@ -52,8 +55,10 @@ fun OnboardingScreen(onPaired: () -> Unit) {
     val context = LocalContext.current
     val status by PairingCtl.status.collectAsState()
     val appLabel = Design.flow.collectAsState().value
+    val prefs = remember { Prefs.get(context) }
     val scope = rememberCoroutineScope()
     var showManual by rememberSaveable { mutableStateOf(false) }
+    var showFeatureTour by rememberSaveable { mutableStateOf(false) }
 
     val notifPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -64,8 +69,12 @@ fun OnboardingScreen(onPaired: () -> Unit) {
             if (Build.VERSION.SDK_INT >= 33) {
                 notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
-            delay(900)
-            onPaired()
+            if (prefs.featureTourShown) {
+                delay(900)
+                onPaired()
+            } else {
+                showFeatureTour = true
+            }
         }
     }
 
@@ -83,12 +92,12 @@ fun OnboardingScreen(onPaired: () -> Unit) {
                 .size(72.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text("⇄", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            UiText("⇄", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         }
         Spacer(Modifier.height(12.dp))
-        Text(appLabel, style = MaterialTheme.typography.headlineMedium)
+        UiText(appLabel, style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(6.dp))
-        Text(
+        UiText(
             "Буфер обмена и файлы между ПК и телефоном\nв одной локальной сети",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -100,17 +109,17 @@ fun OnboardingScreen(onPaired: () -> Unit) {
             is PairingCtl.Status.Working -> {
                 CircularProgressIndicator(Modifier.size(34.dp))
                 Spacer(Modifier.height(12.dp))
-                Text("Подключение к ПК…", style = MaterialTheme.typography.bodyMedium)
+                UiText("Подключение к ПК…", style = MaterialTheme.typography.bodyMedium)
             }
 
             is PairingCtl.Status.Success -> {
-                Text("✓", fontSize = 40.sp, color = MaterialTheme.colorScheme.primary)
+                UiText("✓", fontSize = 40.sp, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(8.dp))
-                Text("Подключено", style = MaterialTheme.typography.titleMedium)
+                UiText("Подключено", style = MaterialTheme.typography.titleMedium)
             }
 
             is PairingCtl.Status.Error -> {
-                Text(
+                UiText(
                     s.message,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
@@ -118,7 +127,7 @@ fun OnboardingScreen(onPaired: () -> Unit) {
                 )
                 Spacer(Modifier.height(14.dp))
                 Button(onClick = { PairingCtl.reset(); showManual = false }) {
-                    Text("Попробовать снова")
+                    UiText("Попробовать снова")
                 }
                 Spacer(Modifier.height(8.dp))
             }
@@ -129,15 +138,15 @@ fun OnboardingScreen(onPaired: () -> Unit) {
         if (status is PairingCtl.Status.Idle || status is PairingCtl.Status.Error) {
             SectionCard(modifier = Modifier.padding(top = 16.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("1. На ПК откройте $appLabel", style = MaterialTheme.typography.titleSmall)
+                    UiText("1. На ПК откройте $appLabel", style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(4.dp))
-                    Text(
+                    UiText(
                         "На вкладке «Главная» показан QR-код и 6-значный PIN-код.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(16.dp))
-                    Text("2. Подключите телефон", style = MaterialTheme.typography.titleSmall)
+                    UiText("2. Подключите телефон", style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(12.dp))
 
                     if (!showManual) {
@@ -155,7 +164,7 @@ fun OnboardingScreen(onPaired: () -> Unit) {
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                         ) {
-                            Text("Сканировать QR-код")
+                            UiText("Сканировать QR-код")
                         }
                         Spacer(Modifier.height(10.dp))
                         OutlinedButton(
@@ -163,7 +172,7 @@ fun OnboardingScreen(onPaired: () -> Unit) {
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                         ) {
-                            Text("Ввести адрес и PIN вручную")
+                            UiText("Ввести адрес и PIN вручную")
                         }
                     } else {
                         ManualPairForm(onSubmit = { host, port, pin ->
@@ -175,6 +184,30 @@ fun OnboardingScreen(onPaired: () -> Unit) {
         }
 
         Spacer(Modifier.height(20.dp))
+    }
+
+    if (showFeatureTour) {
+        AlertDialog(
+            onDismissRequest = {
+                prefs.featureTourShown = true
+                showFeatureTour = false
+                onPaired()
+            },
+            title = { UiText("Подключено — вот что можно делать") },
+            text = {
+                UiText(
+                    "Отправляйте буфер и файлы с телефона, просматривайте файлы ПК, " +
+                        "управляйте музыкой и настройте зеркалирование уведомлений в параметрах.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    prefs.featureTourShown = true
+                    showFeatureTour = false
+                    onPaired()
+                }) { UiText("Перейти в приложение") }
+            },
+        )
     }
 }
 
@@ -188,8 +221,8 @@ private fun ManualPairForm(onSubmit: (host: String, port: Int, pin: String) -> U
         OutlinedTextField(
             value = host,
             onValueChange = { host = it.trim() },
-            label = { Text("Адрес ПК") },
-            placeholder = { Text("192.168.1.3") },
+            label = { UiText("Адрес ПК") },
+            placeholder = { UiText("192.168.1.3") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
@@ -197,7 +230,7 @@ private fun ManualPairForm(onSubmit: (host: String, port: Int, pin: String) -> U
         OutlinedTextField(
             value = port,
             onValueChange = { port = it.filter { c -> c.isDigit() }.take(5) },
-            label = { Text("Порт") },
+            label = { UiText("Порт") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -205,7 +238,7 @@ private fun ManualPairForm(onSubmit: (host: String, port: Int, pin: String) -> U
         OutlinedTextField(
             value = pin,
             onValueChange = { pin = it.filter { c -> c.isDigit() }.take(6) },
-            label = { Text("PIN-код с ПК") },
+            label = { UiText("PIN-код с ПК") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -219,7 +252,7 @@ private fun ManualPairForm(onSubmit: (host: String, port: Int, pin: String) -> U
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
         ) {
-            Text("Подключить")
+            UiText("Подключить")
         }
     }
 }

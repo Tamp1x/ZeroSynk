@@ -75,6 +75,7 @@ object ClipHistory {
                 old.file?.let { p -> runCatching { File(p).delete() } }
             }
             save(context, items)
+            runCatching { com.zerosynk.app.send.ClipWidget.refresh(context) }
         }
     }
 
@@ -82,6 +83,7 @@ object ClipHistory {
         synchronized(this) {
             load(context).forEach { e -> e.file?.let { p -> runCatching { File(p).delete() } } }
             save(context, emptyList())
+            runCatching { com.zerosynk.app.send.ClipWidget.refresh(context) }
         }
     }
 

@@ -5,7 +5,9 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import com.zerosynk.app.ui.localize
 import com.zerosynk.app.service.SyncService
+import com.zerosynk.app.data.Prefs
 
 /**
  * Invisible trampoline launched from the notification action "Отправить файл".
@@ -24,7 +26,7 @@ class SendFileActivity : Activity() {
             @Suppress("DEPRECATION")
             startActivityForResult(intent, REQ_PICK)
         } catch (_: Exception) {
-            Toast.makeText(this, "Не удалось открыть выбор файла", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, localize("Не удалось открыть выбор файла", Prefs.get(this).language == "en"), Toast.LENGTH_SHORT).show()
             finish()
         }
     }
@@ -40,7 +42,7 @@ class SendFileActivity : Activity() {
                     this.data = uri
                 }
                 ContextCompat.startForegroundService(this, intent)
-                Toast.makeText(this, "Отправка файла…", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, localize("Отправка файла…", Prefs.get(this).language == "en"), Toast.LENGTH_SHORT).show()
             }
         }
         finish()

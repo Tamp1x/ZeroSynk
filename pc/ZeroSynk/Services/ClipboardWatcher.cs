@@ -123,8 +123,8 @@ public static class ClipboardReader
         {
             try
             {
-                if (!System.Windows.Clipboard.ContainsText(DataFormats.Html)) return null;
-                if (System.Windows.Clipboard.GetDataObject()?.GetData(DataFormats.Html) is not string raw)
+                if (!System.Windows.Clipboard.ContainsText(System.Windows.TextDataFormat.Html)) return null;
+                if (System.Windows.Clipboard.GetDataObject()?.GetData(System.Windows.DataFormats.Html) is not string raw)
                     return null;
                 return ExtractHtml(raw);
             }

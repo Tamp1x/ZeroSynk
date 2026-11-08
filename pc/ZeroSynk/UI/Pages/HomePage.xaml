@@ -23,6 +23,7 @@
                         <TextBlock x:Name="StatusTitle" Text="Ожидание подключения"
                                    Style="{StaticResource H2}"/>
                         <TextBlock x:Name="StatusDetail" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                        <TextBlock x:Name="PhoneBatteryStatus" Style="{StaticResource Caption}" Margin="0,3,0,0" Visibility="Collapsed"/>
                     </StackPanel>
                     <Button Grid.Column="2" Style="{StaticResource SecondaryButton}" Content="Остановить"
                             VerticalAlignment="Center" Click="OnSyncToggle" x:Name="SyncToggleBtn"/>

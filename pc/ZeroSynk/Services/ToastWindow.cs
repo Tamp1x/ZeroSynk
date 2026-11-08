@@ -26,7 +26,7 @@ public sealed class ToastWindow : Window
     {
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
-        Background = Brushes.Transparent;
+        Background = System.Windows.Media.Brushes.Transparent;
         ShowActivated = false;
         ShowInTaskbar = false;
         Topmost = true;
@@ -77,16 +77,16 @@ public sealed class ToastWindow : Window
         // «Открыть» — explicit click only, never auto-starts the file (p. 16).
         if (!string.IsNullOrEmpty(openPath))
         {
-            var openBtn = new Button
+            var openBtn = new System.Windows.Controls.Button
             {
                 Content = "Открыть",
                 Margin = new Thickness(0, 10, 0, 0),
                 Padding = new Thickness(14, 4, 14, 4),
-                HorizontalAlignment = HorizontalAlignment.Left,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
                 FontSize = 12,
             };
-            if (TryFindResource("AccentBrush") is Brush accent) openBtn.Background = accent;
-            if (TryFindResource("AccentText") is Brush onAccent) openBtn.Foreground = onAccent;
+            if (TryFindResource("AccentBrush") is System.Windows.Media.Brush accent) openBtn.Background = accent;
+            if (TryFindResource("AccentText") is System.Windows.Media.Brush onAccent) openBtn.Foreground = onAccent;
             var target = openPath;
             openBtn.Click += (_, _) =>
             {

@@ -23,9 +23,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.Text as MaterialText
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,7 +42,11 @@ import com.zerosynk.app.design.Design
 import com.zerosynk.app.service.Conn
 import com.zerosynk.app.service.ServiceState
 import com.zerosynk.app.service.SyncService
+import com.zerosynk.app.net.Protocol
 import com.zerosynk.app.ui.theme.Green
+import com.zerosynk.app.ui.UiText
+import com.zerosynk.app.ui.LocalUiEnglish
+import com.zerosynk.app.ui.localize
 import com.zerosynk.app.ui.theme.ZeroSynkTheme
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -100,7 +105,7 @@ class ShareTargetActivity : ComponentActivity() {
 
         val prefs = Prefs.get(this)
         if (!prefs.paired) {
-            Toast.makeText(this, "Сначала подключите ПК в ${Design.displayName()}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, localize("Сначала подключите ПК в ${Design.displayName()}", Prefs.get(this).language == "en"), Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -112,28 +117,38 @@ class ShareTargetActivity : ComponentActivity() {
 
         setContent {
             ZeroSynkTheme {
-                ShareConfirm(
-                    pcName = pcName,
-                    fileNames = names,
-                    totalSize = totalSize,
-                    text = text,
-                    sending = sending,
-                    onSend = {
-                        if (!sending) {
-                            sending = true
-                            lifecycleScope.launch {
-                                send(uris, text)
-                                finish()
+                CompositionLocalProvider(LocalUiEnglish provides (prefs.language == "en")) {
+                    ShareConfirm(
+                        pcName = pcName,
+                        fileNames = names,
+                        totalSize = totalSize,
+                        text = text,
+                        sending = sending,
+                        onSend = {
+                            if (!sending) {
+                                sending = true
+                                lifecycleScope.launch {
+                                    send(uris, text)
+                                    finish()
+                                }
                             }
-                        }
-                    },
-                    onCancel = { if (!sending) finish() },
-                )
+                        },
+                        onCancel = { if (!sending) finish() },
+                    )
+                }
             }
         }
     }
 
     private suspend fun send(uris: Collection<Uri>, text: String?) {
+        val sharedText = text ?: intent.dataString
+        val location = sharedText?.takeIf { it.trimStart().startsWith("geo:", ignoreCase = true) }
+        if (location != null) {
+            if (!SyncService.isConnected()) SyncService.start(this)
+            SyncService.sendJson(Protocol.sharedLocation(location.trim()))
+            Toast.makeText(this, localize("Местоположение отправлено на ПК", Prefs.get(this).language == "en"), Toast.LENGTH_SHORT).show()
+            if (uris.isEmpty()) return
+        }
         // Share-sheet grants are temporary and die with this Activity; persistable
         // grants are usually refused (no FLAG_GRANT_PERSISTABLE from senders).
         // So: try persistable first, otherwise copy the bytes into our cache
@@ -178,7 +193,7 @@ class ShareTargetActivity : ComponentActivity() {
             }
         }
         ContextCompat.startForegroundService(this, intent)
-        Toast.makeText(this, "Отправка…", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, localize("Отправка…", Prefs.get(this).language == "en"), Toast.LENGTH_SHORT).show()
     }
 
     private fun copyToCache(uri: Uri): Uri? {
@@ -205,12 +220,16 @@ class ShareTargetActivity : ComponentActivity() {
         return name.substringBeforeLast('.', name).lowercase()
     }
 
-    private fun queryName(uri: Uri): String = try {
-        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-            if (c.moveToFirst() && c.columnCount > 0) c.getString(0) else uri.lastPathSegment ?: "файл"
-        } ?: (uri.lastPathSegment ?: "файл")
-    } catch (_: Exception) {
-        uri.lastPathSegment ?: "файл"
+    private fun queryName(uri: Uri): String {
+        val name = try {
+            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                if (c.moveToFirst() && c.columnCount > 0) c.getString(0) else uri.lastPathSegment ?: "файл"
+            } ?: (uri.lastPathSegment ?: "файл")
+        } catch (_: Exception) {
+            uri.lastPathSegment ?: "файл"
+        }
+        return if (contentResolver.getType(uri)?.contains("vcard", ignoreCase = true) == true &&
+            !name.endsWith(".vcf", ignoreCase = true)) "$name.vcf" else name
     }
 
     private fun querySize(uri: Uri): Long = try {
@@ -255,11 +274,11 @@ private fun ShareConfirm(
                 .padding(24.dp),
         ) {
             Column(Modifier.padding(22.dp)) {
-                Text("Отправить на $pcName", style = MaterialTheme.typography.titleMedium)
+                UiText("Отправить на $pcName", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(12.dp))
                 if (fileNames.isNotEmpty()) {
                     val title = fileNames.first()
-                    Text(
+                    UiText(
                         text = if (fileNames.size == 1) title
                         else "$title и ещё ${fileNames.size - 1}",
                         style = MaterialTheme.typography.bodyMedium,
@@ -268,14 +287,14 @@ private fun ShareConfirm(
                     )
                     if (totalSize > 0) {
                         Spacer(Modifier.height(4.dp))
-                        Text(
+                        UiText(
                             formatSize(totalSize),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 } else if (!text.isNullOrBlank()) {
-                    Text(
+                    UiText(
                         text,
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 4,
@@ -283,17 +302,17 @@ private fun ShareConfirm(
                     )
                 }
                 Spacer(Modifier.height(10.dp))
-                Text(
+                UiText(
                     statusText,
                     style = MaterialTheme.typography.bodySmall,
                     color = if (connected) Green else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(18.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onCancel, enabled = !sending) { Text("Отмена") }
+                    TextButton(onClick = onCancel, enabled = !sending) { UiText("Отмена") }
                     Spacer(Modifier.width(8.dp))
                     Button(onClick = onSend, enabled = !sending) {
-                        Text(if (sending) "Отправка…" else "Отправить")
+                        UiText(if (sending) "Отправка…" else "Отправить")
                     }
                 }
             }

@@ -5,6 +5,8 @@ import android.app.PendingIntent
 import android.app.RemoteInput
 import android.app.Service
 import android.content.Context
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
@@ -30,6 +32,7 @@ import com.zerosynk.app.clipboard.ClipboardSync
 import com.zerosynk.app.data.ClipHistory
 import com.zerosynk.app.data.FileHashes
 import com.zerosynk.app.data.NotifHistory
+import com.zerosynk.app.data.NotifFilter
 import com.zerosynk.app.data.Prefs
 import com.zerosynk.app.data.SaveFolder
 import com.zerosynk.app.design.Design
@@ -40,6 +43,7 @@ import com.zerosynk.app.net.Protocol
 import com.zerosynk.app.net.WsMessage
 import com.zerosynk.app.send.SendClipboardActivity
 import com.zerosynk.app.send.SendFileActivity
+import com.zerosynk.app.ui.localize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -67,6 +71,7 @@ class SyncService : Service() {
 
     private var ws: WebSocket? = null
     private var reconnectAttempt = 0
+    @Volatile private var pingSentAt = 0L
 
     /** File ids currently being downloaded — guards against duplicate fileOffers. */
     private val inFlightDownloads = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
@@ -88,6 +93,12 @@ class SyncService : Service() {
     private var shouldRun = true
 
     private var startedForeground = false
+    private var batteryReceiverRegistered = false
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent != null) sendBatteryStatus(intent)
+        }
+    }
     private var pingRunnable: Runnable? = null
     private var reconnectRunnable: Runnable? = null
 
@@ -95,6 +106,13 @@ class SyncService : Service() {
         super.onCreate()
         instance = this
         prefs = Prefs.get(this)
+        val batteryFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(batteryReceiver, batteryFilter, Context.RECEIVER_NOT_EXPORTED)
+        else {
+            @Suppress("DEPRECATION")
+            registerReceiver(batteryReceiver, batteryFilter)
+        }
+        batteryReceiverRegistered = true
         // Reverse media control: watch the phone's sessions, push "now playing" to the PC.
         PhoneMedia.start(this)
         // Resumable .part files must outlive a restart (p. 14) — only ancient ones die.
@@ -205,6 +223,10 @@ class SyncService : Service() {
         ServiceState.setConn(Conn.Disconnected)
         hideMediaNotification()
         PhoneMedia.stop()
+        if (batteryReceiverRegistered) {
+            runCatching { unregisterReceiver(batteryReceiver) }
+            batteryReceiverRegistered = false
+        }
         super.onDestroy()
     }
 
@@ -329,6 +351,8 @@ class SyncService : Service() {
                 )
                 schedulePing()
                 refreshNotification()
+                com.zerosynk.app.send.ClipWidget.refresh(this@SyncService)
+                registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))?.let(::sendBatteryStatus)
                 // Tell the PC what is playing here right now (reverse-control card).
                 PhoneMedia.pushNow()
             }
@@ -344,6 +368,7 @@ class SyncService : Service() {
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 ws = null
                 ServiceState.setConn(Conn.Disconnected)
+                com.zerosynk.app.send.ClipWidget.refresh(this@SyncService)
                 refreshNotification()
                 scheduleReconnect()
             }
@@ -351,6 +376,7 @@ class SyncService : Service() {
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 ws = null
                 ServiceState.setConn(Conn.Disconnected)
+                com.zerosynk.app.send.ClipWidget.refresh(this@SyncService)
                 refreshNotification()
                 scheduleReconnect()
             }
@@ -360,6 +386,7 @@ class SyncService : Service() {
     private fun schedulePing() {
         pingRunnable?.let { handler.removeCallbacks(it) }
         val r = Runnable {
+            pingSentAt = android.os.SystemClock.elapsedRealtime()
             val json = ProtoJson.encodeToString(WsMessage.serializer(), Protocol.ping())
             ws?.send(json)
             // Re-assert the ongoing notification: some OEMs (HyperOS) silently drop it.
@@ -368,6 +395,16 @@ class SyncService : Service() {
         }
         pingRunnable = r
         handler.postDelayed(r, 25_000)
+    }
+
+    private fun sendBatteryStatus(intent: Intent) {
+        val level = intent.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, 100)
+        if (level < 0 || scale <= 0) return
+        val status = intent.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1)
+        val charging = status == android.os.BatteryManager.BATTERY_STATUS_CHARGING ||
+            status == android.os.BatteryManager.BATTERY_STATUS_FULL
+        sendJson(Protocol.phoneStatus((level * 100 / scale).coerceIn(0, 100), charging))
     }
 
     private fun scheduleReconnect() {
@@ -481,6 +518,7 @@ class SyncService : Service() {
                 // PC -> phone: show a notification from the PC
                 if (!prefs.mirrorWinNotifs || !prefs.syncEnabled) return
                 if (msg.origin == "phone") return // never echo our own
+                if (!NotifFilter.allows(prefs, msg.pkg, msg.appName, important = true)) return
                 showRemoteNotification(msg)
             }
             "notifReply" -> {
@@ -498,6 +536,7 @@ class SyncService : Service() {
                 when (msg.state) {
                     "stopped" -> {
                         ServiceState.setConn(Conn.Disconnected)
+                        com.zerosynk.app.send.ClipWidget.refresh(this@SyncService)
                         hideMediaNotification()
                         refreshNotification()
                     }
@@ -506,12 +545,16 @@ class SyncService : Service() {
                         // UI state was flipped by the earlier "stopped".
                         if (prefs.syncEnabled) {
                             ServiceState.setConn(Conn.Connected(prefs.pcName ?: "ПК"))
+                            com.zerosynk.app.send.ClipWidget.refresh(this@SyncService)
                             refreshNotification(force = true)
                         }
                     }
                 }
             }
-            "pong" -> Unit
+            "pong" -> {
+                val sent = pingSentAt
+                if (sent > 0) ServiceState.setPing(android.os.SystemClock.elapsedRealtime() - sent)
+            }
         }
     }
 
@@ -1160,7 +1203,7 @@ class SyncService : Service() {
         )
         val replyAction = NotificationCompat.Action.Builder(0, "Ответить", replyPending)
             .addRemoteInput(
-                RemoteInput.Builder(EXTRA_REPLY).setLabel("Ответ").build(),
+                androidx.core.app.RemoteInput.Builder(EXTRA_REPLY).setLabel("Ответ").build(),
             )
             .build()
 
@@ -1243,7 +1286,7 @@ class SyncService : Service() {
     private fun toast(msg: String) {
         handler.post {
             try {
-                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, localize(msg, prefs.language == "en"), Toast.LENGTH_SHORT).show()
             } catch (_: Exception) {
             }
         }

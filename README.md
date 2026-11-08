@@ -20,6 +20,12 @@ Sync clipboard, files, notifications, and media between a Windows PC and an Andr
 - **Pairing via QR / PIN** — one-click setup, token stored locally
 - **Custom dark tray** — OwnerDraw menu matching the app theme
 - **Floating pill-dock** navigation on Android
+- **Clipboard and notification history** on a dedicated Android tab
+- **Home-screen widget and Quick Settings tile** for sending the current clipboard to the PC
+- **Opt-in screenshot sync** — after Android's screen-capture consent, one screenshot is sent every 10 minutes while the capture service is running (off by default)
+- **Shared locations and contacts** — geo links open in maps on the PC; vCards arrive as `.vcf` files
+- **Phone battery status** on the PC and a live diagnostics view
+- **Material You** colors on Android 12+ and a one-time feature tour after pairing
 - **Auto-cleanup of old files** — keeps the recent send batches (toggle + "Keep batches" 0/1/2/3/5) and deletes **only files received from the phone** — your own files in the save folder are never touched
 - **Custom save folder (Android)** — pick any folder (SD card, DCIM, Telegram…) for files sent from the PC via the SAF folder picker; default is still Download/ZeroSynk
 - **Stop/start sync** from either side — the PC pushes `status started/stopped`, so the phone never gets stuck on "not connected"

@@ -4,9 +4,13 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import android.os.Build
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -81,10 +85,14 @@ val AppTypography = Typography(
 
 @Composable
 fun ZeroSynkTheme(design: String = Design.current, content: @Composable () -> Unit) {
+    val context = LocalContext.current
+    val dark = isSystemInDarkTheme()
     val colors = when (design) {
         Design.ONYX -> OnyxColors
         Design.ECLIPX -> EclipxColors
-        else -> if (isSystemInDarkTheme()) DarkColors else LightColors
+        else -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        } else if (dark) DarkColors else LightColors
     }
     MaterialTheme(
         colorScheme = colors,

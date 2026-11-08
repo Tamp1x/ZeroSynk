@@ -137,7 +137,7 @@ public static class TrayManager
         _balloonOpenPath = openPath;
         _icon.BalloonTipTitle = title;
         _icon.BalloonTipText = text;
-        _icon.BalloonTipIcon = BalloonTipIcon.Info;
+        _icon.BalloonTipIcon = ToolTipIcon.Info;
         _icon.ShowBalloonTip(openPath != null ? 6000 : 4000);
     }
 

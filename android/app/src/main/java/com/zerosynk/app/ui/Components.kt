@@ -14,12 +14,13 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import androidx.compose.material3.Text as MaterialText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.zerosynk.app.data.Prefs
 
 @Composable
 fun SectionCard(
@@ -35,7 +36,7 @@ fun SectionCard(
     ) {
         Column(modifier = Modifier.padding(vertical = if (title == null) 6.dp else 4.dp)) {
             if (title != null) {
-                Text(
+                UiText(
                     text = title,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -61,9 +62,9 @@ fun SwitchRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
+            UiText(title, style = MaterialTheme.typography.bodyLarge)
             if (subtitle != null) {
-                Text(
+                UiText(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -82,8 +83,8 @@ fun ValueRow(title: String, value: String) {
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Text(
+        UiText(title, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        UiText(
             value,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -92,7 +93,7 @@ fun ValueRow(title: String, value: String) {
 }
 
 fun toast(context: Context, msg: String) {
-    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+    Toast.makeText(context, localize(msg, Prefs.get(context).language == "en"), Toast.LENGTH_SHORT).show()
 }
 
 fun findActivity(context: Context): Activity? {

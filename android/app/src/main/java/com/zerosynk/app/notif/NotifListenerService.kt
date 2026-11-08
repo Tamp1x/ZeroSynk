@@ -4,6 +4,8 @@ import android.app.Notification
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import com.zerosynk.app.data.Prefs
+import com.zerosynk.app.data.NotifFilter
+import com.zerosynk.app.data.NotifHistory
 import com.zerosynk.app.net.Protocol
 import com.zerosynk.app.service.SyncService
 import java.security.MessageDigest
@@ -75,6 +77,9 @@ class NotifListenerService : NotificationListenerService() {
             sbn.packageName
         }
 
+        NotifHistory.add(this, key, appName, title, text, origin = "phone")
+        com.zerosynk.app.service.ServiceState.bumpNotifRevision()
+
         val replyable = sbn.notification.actions?.any {
             it.remoteInputs?.isNotEmpty() == true
         } == true
@@ -103,6 +108,21 @@ class NotifListenerService : NotificationListenerService() {
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
         if (title.isNullOrBlank() && text.isNullOrBlank()) return false
+        val important = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = getSystemService(NotificationListenerService.NOTIFICATION_SERVICE)
+                .let { it as android.app.NotificationManager }
+                .getNotificationChannel(sbn.notification.channelId)
+            channel == null || channel.importance >= android.app.NotificationManager.IMPORTANCE_DEFAULT
+        } else {
+            sbn.notification.priority >= Notification.PRIORITY_DEFAULT
+        }
+        val appName = try {
+            val info = packageManager.getApplicationInfo(sbn.packageName, 0)
+            packageManager.getApplicationLabel(info).toString()
+        } catch (_: Exception) {
+            sbn.packageName
+        }
+        if (!NotifFilter.allows(prefs, sbn.packageName, appName, important)) return false
         return true
     }
 

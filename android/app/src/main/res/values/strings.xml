@@ -3,4 +3,10 @@
     <string name="app_name">ZeroSynk</string>
     <string name="app_name_onyx">OnyxSynk</string>
     <string name="app_name_eclipx">Eclipx</string>
+    <string name="tile_send_clipboard">Отправить буфер на ПК</string>
+    <string name="language_label">Язык / Language</string>
+    <string name="language_russian">Русский</string>
+    <string name="language_english">English</string>
+    <string name="whats_new">Что нового</string>
+    <string name="check_updates">Проверить обновление</string>
 </resources>

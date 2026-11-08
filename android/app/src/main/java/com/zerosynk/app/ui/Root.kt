@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,15 +21,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.Text as MaterialText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,6 +61,7 @@ import kotlinx.coroutines.flow.SharedFlow
 fun ZeroSynkRoot(scanFlow: SharedFlow<String>) {
     val context = LocalContext.current
     val prefs = remember { Prefs.get(context) }
+    var english by remember { mutableStateOf(prefs.language == "en") }
     var screen by rememberSaveable { mutableStateOf(if (prefs.paired) "main" else "onboarding") }
     val scan by scanFlow.collectAsState(initial = null)
 
@@ -73,12 +78,10 @@ fun ZeroSynkRoot(scanFlow: SharedFlow<String>) {
         }
     }
 
-    when (screen) {
-        "onboarding" -> {
-            OnboardingScreen(onPaired = { screen = "main" })
-        }
-        else -> {
-            MainScreen(onRepaired = { screen = "onboarding" })
+    CompositionLocalProvider(LocalUiEnglish provides english) {
+        when (screen) {
+            "onboarding" -> OnboardingScreen(onPaired = { screen = "main" })
+            else -> MainScreen(onRepaired = { screen = "onboarding" }, onLanguageChanged = { english = it })
         }
     }
 }
@@ -107,38 +110,65 @@ private val FolderIcon: ImageVector by lazy {
 }
 
 @Composable
-private fun MainScreen(onRepaired: () -> Unit) {
+private fun MainScreen(onRepaired: () -> Unit, onLanguageChanged: (Boolean) -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     val items = listOf(
         NavItem("Главная", Icons.Default.Home),
         NavItem("Файлы", FolderIcon),
+        NavItem("История", Icons.Default.List),
         NavItem("Настройки", Icons.Default.Settings),
     )
 
-    // Overlay layout: content fills the whole screen and the dock floats on top,
-    // so there is no reserved black band behind the pill (iOS-style).
-    Box(Modifier.fillMaxSize()) {
-        Box(
-            Modifier
-                .matchParentSize()
-                .statusBarsPadding()
-                .navigationBarsPadding(),
-        ) {
-            when (tab) {
-                0 -> HomeScreen()
-                1 -> FilesScreen()
-                else -> SettingsScreen(onRepaired = onRepaired)
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        if (maxWidth >= 840.dp) {
+            Row(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+                Column(
+                    Modifier.width(220.dp).fillMaxSize().padding(vertical = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items.forEachIndexed { index, item ->
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                                .background(if (tab == index) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                                .clickable { tab = index }
+                                .padding(horizontal = 18.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            Icon(item.icon, contentDescription = item.label, tint = MaterialTheme.colorScheme.onSurface)
+                            UiText(item.label, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+                Box(Modifier.weight(1f).fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                    ScreenContent(tab, onRepaired, onLanguageChanged, Modifier.fillMaxSize().widthIn(max = 1000.dp))
+                }
+            }
+        } else {
+            // On phones the dock floats over the screen; wider windows use a navigation rail.
+            Box(Modifier.fillMaxSize()) {
+                Box(Modifier.matchParentSize().statusBarsPadding().navigationBarsPadding()) {
+                    ScreenContent(tab, onRepaired, onLanguageChanged,
+                        Modifier.fillMaxSize().widthIn(max = 760.dp).align(Alignment.TopCenter))
+                }
+                FloatingDock(
+                    items = items, selectedIndex = tab, onSelect = { tab = it },
+                    modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 14.dp),
+                )
             }
         }
-        FloatingDock(
-            items = items,
-            selectedIndex = tab,
-            onSelect = { tab = it },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 14.dp),
-        )
+    }
+}
+
+@Composable
+private fun ScreenContent(tab: Int, onRepaired: () -> Unit, onLanguageChanged: (Boolean) -> Unit, modifier: Modifier) {
+    Box(modifier) {
+        when (tab) {
+            0 -> HomeScreen()
+            1 -> FilesScreen()
+            2 -> HistoryScreen()
+            else -> SettingsScreen(onRepaired = onRepaired, onLanguageChanged = onLanguageChanged)
+        }
     }
 }
 

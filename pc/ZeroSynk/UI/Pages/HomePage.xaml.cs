@@ -30,12 +30,14 @@ public partial class HomePage : System.Windows.Controls.UserControl
             _controller.StatusChanged -= OnStatusChanged;
             _controller.ClientPresence -= OnPresence;
             _controller.PhoneMediaReceived -= OnPhoneMedia;
+            _controller.PhoneBatteryChanged -= OnPhoneBatteryChanged;
             ThemeManager.ThemeChanged -= OnSkinChanged;
         };
 
         _controller.StatusChanged += OnStatusChanged;
         _controller.ClientPresence += OnPresence;
         _controller.PhoneMediaReceived += OnPhoneMedia;
+        _controller.PhoneBatteryChanged += OnPhoneBatteryChanged;
 
         PinText.Text = FormatPin(App.Settings.Pin);
         QrHintText.Text = BuildQrHint();
@@ -50,6 +52,8 @@ public partial class HomePage : System.Windows.Controls.UserControl
             $"Откройте {DesignService.Current} на телефоне и отсканируйте QR-код.\n" +
             "Всё работает через вашу сеть (Tailscale в том числе).";
         UpdateSyncButton();
+        if (_controller.PhoneBatteryLevel is int level)
+            ShowPhoneBattery(level, _controller.PhoneCharging);
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -73,6 +77,14 @@ public partial class HomePage : System.Windows.Controls.UserControl
     });
 
     private void OnPresence(bool connected) => Dispatcher.BeginInvoke(() => UpdateStatusLine);
+
+    private void OnPhoneBatteryChanged(int level, bool charging) => Dispatcher.BeginInvoke(() => ShowPhoneBattery(level, charging));
+
+    private void ShowPhoneBattery(int level, bool charging)
+    {
+        PhoneBatteryStatus.Text = $"Телефон: {level}%{(charging ? " · заряжается" : "")}";
+        PhoneBatteryStatus.Visibility = Visibility.Visible;
+    }
 
     private void UpdateStatusLine()
     {

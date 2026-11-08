@@ -17,7 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.Text as MaterialText
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -86,9 +86,9 @@ fun FilesScreen() {
             .padding(horizontal = 20.dp),
     ) {
         Spacer(Modifier.height(52.dp))
-        Text("Файлы ПК", style = MaterialTheme.typography.headlineLarge)
+        UiText("Файлы ПК", style = MaterialTheme.typography.headlineLarge)
         Spacer(Modifier.height(4.dp))
-        Text(
+        UiText(
             text = path.ifEmpty { "Загрузок не выбрано — домашняя папка" },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -105,7 +105,7 @@ fun FilesScreen() {
                         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
+                        UiText(
                             "Чтение папки…",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -113,7 +113,7 @@ fun FilesScreen() {
                     }
                 }
                 error?.let { msg ->
-                    Text(
+                    UiText(
                         msg,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -156,7 +156,7 @@ fun FilesScreen() {
                 if (!loading && error == null && current != null &&
                     current.dirs.isEmpty() && current.files.isEmpty()
                 ) {
-                    Text(
+                    UiText(
                         "Папка пуста",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -198,16 +198,16 @@ private fun FileRow(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(glyph, style = MaterialTheme.typography.bodyLarge)
+        UiText(glyph, style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(
+            UiText(
                 title,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
+            UiText(
                 subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -217,7 +217,7 @@ private fun FileRow(
         }
         if (onDownload != null) {
             TextButton(onClick = onDownload) {
-                Text("Скачать", style = MaterialTheme.typography.labelMedium)
+                UiText("Скачать", style = MaterialTheme.typography.labelMedium)
             }
         }
     }

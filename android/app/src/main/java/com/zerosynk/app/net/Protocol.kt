@@ -36,6 +36,9 @@ data class WsMessage(
     val key: String? = null,
     val pkg: String? = null,
     val appName: String? = null,
+    val location: String? = null,
+    val batteryLevel: Int? = null,
+    val charging: Boolean? = null,
     val replyable: Boolean? = null,
     val origin: String? = null, // phone | pc
     // clipboard kind="stack": recent PC clipboard entries (history seed)
@@ -74,6 +77,12 @@ object Protocol {
     )
 
     fun ping() = WsMessage(type = "ping", ts = now())
+
+    fun sharedLocation(uri: String) = WsMessage(type = "location", location = uri, ts = now())
+
+    fun phoneStatus(level: Int, charging: Boolean) = WsMessage(
+        type = "phoneStatus", batteryLevel = level, charging = charging, ts = now(),
+    )
 
     fun clipboardText(text: String, hash: String) = WsMessage(
         type = "clipboard",

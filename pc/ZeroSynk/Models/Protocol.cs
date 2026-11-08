@@ -75,6 +75,9 @@ public sealed class WsMessage
     [JsonPropertyName("appName")] public string? AppName { get; set; }
     [JsonPropertyName("replyable")] public bool? Replyable { get; set; }
     [JsonPropertyName("origin")] public string? Origin { get; set; } // phone | pc
+    [JsonPropertyName("location")] public string? Location { get; set; }
+    [JsonPropertyName("batteryLevel")] public int? BatteryLevel { get; set; }
+    [JsonPropertyName("charging")] public bool? Charging { get; set; }
 
     [JsonPropertyName("ts")] public long? Ts { get; set; }
 

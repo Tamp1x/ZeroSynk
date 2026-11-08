@@ -2,10 +2,14 @@ package com.zerosynk.app.send
 
 import android.app.Activity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import com.zerosynk.app.clipboard.ClipboardSync
 import com.zerosynk.app.data.LoopGuard
 import com.zerosynk.app.service.SyncService
+import com.zerosynk.app.data.Prefs
+import com.zerosynk.app.ui.localize
 
 /**
  * Invisible trampoline launched from the notification action "Отправить буфер".
@@ -14,6 +18,7 @@ import com.zerosynk.app.service.SyncService
  * Pattern used by KDE Connect. Finishes immediately after reading.
  */
 class SendClipboardActivity : Activity() {
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,18 +34,25 @@ class SendClipboardActivity : Activity() {
         }
         LoopGuard.lastSentHash = msg.hash
         if (!SyncService.isConnected()) SyncService.start(this)
-        val sent = SyncService.sendJson(msg)
-        toast(
-            when {
-                sent && msg.kind == "image" -> "Изображение отправлено на ПК"
-                sent -> "Текст отправлен на ПК"
-                else -> "Нет подключения к ПК — попробуйте ещё раз"
+        var attempts = 0
+        fun deliver() {
+            if (SyncService.isConnected()) {
+                val sent = SyncService.sendJson(msg)
+                toast(if (sent) {
+                    if (msg.kind == "image") "Изображение отправлено на ПК" else "Текст отправлен на ПК"
+                } else "Не удалось отправить буфер")
+                finish()
+            } else if (++attempts < 24) {
+                handler.postDelayed({ deliver() }, 250)
+            } else {
+                toast("Нет подключения к ПК — попробуйте ещё раз")
+                finish()
             }
-        )
-        finish()
+        }
+        handler.postDelayed({ deliver() }, 250)
     }
 
     private fun toast(msg: String) {
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, localize(msg, Prefs.get(this).language == "en"), Toast.LENGTH_SHORT).show()
     }
 }

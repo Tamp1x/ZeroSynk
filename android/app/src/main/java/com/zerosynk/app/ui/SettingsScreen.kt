@@ -18,16 +18,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import androidx.compose.material3.Text as MaterialText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,6 +48,13 @@ import com.zerosynk.app.service.ServiceState
 import com.zerosynk.app.service.SyncService
 import com.zerosynk.app.util.Xiaomi
 import android.provider.Settings
+import android.media.projection.MediaProjectionManager
+import android.app.Activity
+import androidx.core.content.ContextCompat
+import com.zerosynk.app.send.ScreenshotSyncService
+import com.zerosynk.app.update.ReleaseUpdater
+import com.zerosynk.app.update.UpdateCheck
+import kotlinx.coroutines.launch
 
 private fun isNotificationListenerEnabled(context: android.content.Context): Boolean {
     val cn = android.content.ComponentName(context, com.zerosynk.app.notif.NotifListenerService::class.java)
@@ -54,10 +63,19 @@ private fun isNotificationListenerEnabled(context: android.content.Context): Boo
 }
 
 @Composable
-fun SettingsScreen(onRepaired: () -> Unit) {
+fun SettingsScreen(onRepaired: () -> Unit, onLanguageChanged: (Boolean) -> Unit = {}) {
     val context = LocalContext.current
     val prefs = remember { Prefs.get(context) }
     val conn by ServiceState.conn.collectAsState()
+    val lastEvent by ServiceState.lastEvent.collectAsState()
+    val pingMs by ServiceState.pingMs.collectAsState()
+    var showDiagnostics by remember { mutableStateOf(false) }
+    var showWhatsNew by remember { mutableStateOf(prefs.lastWhatsNewVersion != BuildConfig.VERSION_NAME) }
+    var language by remember { mutableStateOf(prefs.language) }
+    var updateMessage by remember { mutableStateOf<String?>(null) }
+    var updateRelease by remember { mutableStateOf<com.zerosynk.app.update.ReleaseInfo?>(null) }
+    var checkingUpdate by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     var autoApply by remember { mutableStateOf(prefs.autoApplyClipboard) }
     var autoDownload by remember { mutableStateOf(prefs.autoDownloadFiles) }
@@ -65,6 +83,9 @@ fun SettingsScreen(onRepaired: () -> Unit) {
     var mediaControls by remember { mutableStateOf(prefs.mediaControls) }
     var syncNotifs by remember { mutableStateOf(prefs.syncNotifs) }
     var mirrorWin by remember { mutableStateOf(prefs.mirrorWinNotifs) }
+    var screenshotSync by remember { mutableStateOf(prefs.screenshotSync) }
+    var notifMode by remember { mutableStateOf(prefs.notifMode) }
+    var notifApps by remember { mutableStateOf(prefs.notifApps) }
     var saveFolderLabel by remember { mutableStateOf(SaveFolder.statusLabel(context)) }
     var saveFolderCustom by remember { mutableStateOf(SaveFolder.isCustom(context)) }
     var pwText by remember { mutableStateOf(prefs.transferPassword ?: "") }
@@ -78,6 +99,23 @@ fun SettingsScreen(onRepaired: () -> Unit) {
             saveFolderLabel = SaveFolder.adopt(context, uri)
             saveFolderCustom = true
             toast(context, "Файлы с ПК будут сохраняться в «$saveFolderLabel»")
+        }
+    }
+
+    val screenCaptureLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            val capture = android.content.Intent(context, ScreenshotSyncService::class.java).apply {
+                putExtra(ScreenshotSyncService.EXTRA_RESULT, result.resultCode)
+                putExtra(ScreenshotSyncService.EXTRA_DATA, result.data)
+            }
+            ContextCompat.startForegroundService(context, capture)
+            screenshotSync = true
+            prefs.screenshotSync = true
+        } else {
+            screenshotSync = false
+            prefs.screenshotSync = false
         }
     }
 
@@ -96,7 +134,7 @@ fun SettingsScreen(onRepaired: () -> Unit) {
             .padding(horizontal = 20.dp),
     ) {
         Spacer(Modifier.height(52.dp))
-        Text("Настройки", style = MaterialTheme.typography.headlineLarge)
+        UiText("Настройки", style = MaterialTheme.typography.headlineLarge)
         Spacer(Modifier.height(16.dp))
 
         SectionCard(title = "Подключение") {
@@ -117,11 +155,11 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                 OutlinedTextField(
                     value = pwText,
                     onValueChange = { pwText = it },
-                    label = { Text("Пароль на передачу") },
+                    label = { UiText("Пароль на передачу") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Text(
+                UiText(
                     "Пусто — без пароля. Пароль задаётся на ПК и приходит вместе с подключением.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -141,7 +179,7 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Text("Сохранить пароль")
+                    UiText("Сохранить пароль")
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
@@ -155,7 +193,7 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Text("Переподключиться к другому ПК")
+                    UiText("Переподключиться к другому ПК")
                 }
             }
         }
@@ -179,7 +217,7 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                     selectDesign(Design.ECLIPX)
                 }
             }
-            Text(
+            UiText(
                 "Оформление меняется на всех подключённых устройствах — на ПК и на телефоне.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -202,6 +240,21 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                 checked = autoDownload,
                 onCheckedChange = { autoDownload = it; prefs.autoDownloadFiles = it },
             )
+            SwitchRow(
+                title = "Отправлять скриншоты на ПК",
+                subtitle = "Выкл. по умолчанию · Android спросит разрешение на захват экрана; снимок отправляется раз в 10 минут",
+                checked = screenshotSync,
+                onCheckedChange = { enabled ->
+                    if (enabled) {
+                        val manager = context.getSystemService(MediaProjectionManager::class.java)
+                        screenCaptureLauncher.launch(manager.createScreenCaptureIntent())
+                    } else {
+                        context.stopService(android.content.Intent(context, ScreenshotSyncService::class.java))
+                        screenshotSync = false
+                        prefs.screenshotSync = false
+                    }
+                },
+            )
             // ---- where PC files land ----
             ValueRow("Папка для файлов с ПК", saveFolderLabel)
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
@@ -210,7 +263,7 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Text(if (saveFolderCustom) "Выбрать другую папку" else "Выбрать папку")
+                    UiText(if (saveFolderCustom) "Выбрать другую папку" else "Выбрать папку")
                 }
                 if (saveFolderCustom) {
                     Spacer(Modifier.height(8.dp))
@@ -224,11 +277,11 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                     ) {
-                        Text("Вернуть Download/ZeroSynk")
+                        UiText("Вернуть Download/ZeroSynk")
                     }
                 }
                 Spacer(Modifier.height(6.dp))
-                Text(
+                UiText(
                     "Выберите любую папку на телефоне (например, «Фото» или карту памяти) — " +
                         "файлы с ПК будут сохраняться именно туда. Доступ не сгорает после перезагрузки.",
                     style = MaterialTheme.typography.bodySmall,
@@ -253,7 +306,7 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                 onCheckedChange = { mediaControls = it; prefs.mediaControls = it },
             )
             if (mediaControls && !isNotificationListenerEnabled(context)) {
-                Text(
+                UiText(
                     "Чтобы ПК видел и управлял тем, что играет на телефоне, нужен «Доступ к " +
                         "уведомлениям» — то же разрешение, что и для зеркала уведомлений.",
                     style = MaterialTheme.typography.bodySmall,
@@ -271,7 +324,7 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Text("Разрешить доступ к уведомлениям")
+                    UiText("Разрешить доступ к уведомлениям")
                 }
             }
         }
@@ -299,6 +352,52 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                 checked = mirrorWin,
                 onCheckedChange = { mirrorWin = it; prefs.mirrorWinNotifs = it },
             )
+            UiText(
+                "Фильтр для зеркалирования",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp),
+            )
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("all" to "Все", "important" to "Важные").forEach { (value, label) ->
+                        OutlinedButton(
+                            onClick = { notifMode = value; prefs.notifMode = value },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                        ) { UiText(if (notifMode == value) "✓ $label" else label) }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("allow" to "Только список", "block" to "Кроме списка").forEach { (value, label) ->
+                        OutlinedButton(
+                            onClick = { notifMode = value; prefs.notifMode = value },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                        ) { UiText(if (notifMode == value) "✓ $label" else label) }
+                    }
+                }
+                if (notifMode == "allow" || notifMode == "block") {
+                    OutlinedTextField(
+                        value = notifApps,
+                        onValueChange = { notifApps = it; prefs.notifApps = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { UiText("Приложения") },
+                        supportingText = { UiText("Package ID через запятую, например com.whatsapp") },
+                        minLines = 1,
+                        maxLines = 3,
+                    )
+                }
+                if (notifMode == "important") {
+                    UiText(
+                        "Важность определяется по уровню уведомления Android; уведомления Windows считаются важными.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             if (syncNotifs) {
                 val listenerEnabled = isNotificationListenerEnabled(context)
                 if (!listenerEnabled) {
@@ -313,10 +412,10 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         shape = RoundedCornerShape(12.dp),
                     ) {
-                        Text("Разрешить доступ к уведомлениям")
+                        UiText("Разрешить доступ к уведомлениям")
                     }
                 } else {
-                    Text(
+                    UiText(
                         "Доступ к уведомлениям разрешён ✓",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
@@ -340,7 +439,7 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Text("Разрешить уведомления")
+                    UiText("Разрешить уведомления")
                 }
             }
             val ignoring = Xiaomi.ignoringBatteryOptimizations(context)
@@ -356,12 +455,12 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Text("Отключить оптимизацию батареи")
+                    UiText("Отключить оптимизацию батареи")
                 }
             }
             if (Xiaomi.isXiaomi) {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                    Text(
+                    UiText(
                         "Xiaomi / HyperOS: дополнительно разрешите автозапуск ${Design.displayName(design)} в «Безопасности» — иначе система будет убивать соединение.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -370,19 +469,19 @@ fun SettingsScreen(onRepaired: () -> Unit) {
                         onClick = { Xiaomi.openNotificationSettings(context) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Уведомления приложения")
+                        UiText("Уведомления приложения")
                     }
                     androidx.compose.material3.TextButton(
                         onClick = { if (!Xiaomi.openAutoStart(context)) Xiaomi.openAppSettings(context) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Открыть «Автозапуск»")
+                        UiText("Открыть «Автозапуск»")
                     }
                     androidx.compose.material3.TextButton(
                         onClick = { if (!Xiaomi.openHiddenApps(context)) Xiaomi.openAppSettings(context) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Открыть «Скрытые приложения»")
+                        UiText("Открыть «Скрытые приложения»")
                     }
                 }
             }
@@ -393,6 +492,122 @@ fun SettingsScreen(onRepaired: () -> Unit) {
         SectionCard(title = "О приложении") {
             ValueRow("Версия", BuildConfig.VERSION_NAME)
             ValueRow("Протокол", "v1")
+            UiText("Язык / Language", style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(start = 16.dp, top = 8.dp))
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("ru" to "Русский", "en" to "English").forEach { (code, label) ->
+                    OutlinedButton(
+                        onClick = {
+                            language = code
+                            prefs.language = code
+                            onLanguageChanged(code == "en")
+                        },
+                        modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp),
+                    ) { UiText(if (language == code) "✓ $label" else label) }
+                }
+            }
+            OutlinedButton(
+                onClick = { showWhatsNew = true },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(12.dp),
+            ) { UiText("Что нового") }
+            OutlinedButton(
+                onClick = {
+                    checkingUpdate = true
+                    scope.launch {
+                        when (val result = ReleaseUpdater.check()) {
+                            is UpdateCheck.Available -> {
+                                updateRelease = result.release
+                                updateMessage = if (result.release.apkUrl == null)
+                                    "Найдена версия ${result.release.version}, но в релизе нет APK. Открыть страницу релиза?"
+                                else "Доступна версия ${result.release.version}. Скачать и установить?"
+                            }
+                            UpdateCheck.UpToDate -> updateMessage = "Установлена последняя версия."
+                            is UpdateCheck.Error -> updateMessage = result.message
+                        }
+                        checkingUpdate = false
+                    }
+                },
+                enabled = !checkingUpdate,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(12.dp),
+            ) { UiText(if (checkingUpdate) "Проверка…" else "Проверить обновление") }
+            OutlinedButton(
+                onClick = { showDiagnostics = true },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(12.dp),
+            ) { UiText("Диагностика") }
+        }
+
+        if (showDiagnostics) {
+            AlertDialog(
+                onDismissRequest = { showDiagnostics = false },
+                title = { UiText("Диагностика ZeroSynk") },
+                text = {
+                    UiText(
+                        "Соединение: ${when (conn) {
+                            is Conn.Connected -> "подключено"
+                            is Conn.Connecting -> "подключение"
+                            is Conn.AuthFailed -> "ошибка авторизации"
+                            else -> "нет соединения"
+                        }}\nПК: ${prefs.host ?: "—"}:${prefs.port}\n" +
+                            "Протокол: v1\nПинг: ${pingMs?.let { "$it мс" } ?: "—"}\nПоследнее событие: ${lastEvent ?: "—"}",
+                    )
+                },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(onClick = { showDiagnostics = false }) {
+                        UiText("Закрыть")
+                    }
+                },
+            )
+        }
+        if (updateMessage != null) {
+            val release = updateRelease
+            AlertDialog(
+                onDismissRequest = { updateMessage = null; updateRelease = null },
+                title = { UiText(if (release == null) "Обновление" else "ZeroSynk ${release.version}") },
+                text = { UiText(updateMessage.orEmpty()) },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(onClick = {
+                        updateMessage = null
+                        if (release != null) scope.launch {
+                            if (release.apkUrl == null) {
+                                context.startActivity(android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(release.pageUrl),
+                                ))
+                            } else {
+                                val downloaded = ReleaseUpdater.download(context, release)
+                                downloaded.onSuccess { ReleaseUpdater.install(context, it) }
+                                    .onFailure { updateMessage = it.message ?: "Не удалось скачать APK." }
+                            }
+                            updateRelease = null
+                        }
+                    }) { UiText(if (release == null) "Закрыть" else if (release.apkUrl == null) "Открыть релиз" else "Установить") }
+                },
+                dismissButton = if (release != null) ({
+                    androidx.compose.material3.TextButton(onClick = { updateMessage = null; updateRelease = null }) { UiText("Отмена") }
+                }) else null,
+            )
+        }
+        if (showWhatsNew) {
+            AlertDialog(
+                onDismissRequest = {
+                    showWhatsNew = false
+                    prefs.lastWhatsNewVersion = BuildConfig.VERSION_NAME
+                },
+                title = { UiText("Что нового · ${BuildConfig.VERSION_NAME}") },
+                text = {
+                    UiText("История буфера и уведомлений, файловый менеджер ПК, возобновление передач, " +
+                        "управление медиа с телефона, экранные фильтры уведомлений, виджет и быстрая плитка.")
+                },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(onClick = {
+                        showWhatsNew = false
+                        prefs.lastWhatsNewVersion = BuildConfig.VERSION_NAME
+                    }) { UiText("Понятно") }
+                },
+            )
         }
 
         Spacer(Modifier.height(110.dp))
@@ -428,12 +643,12 @@ private fun DesignChip(
                 .padding(vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
+            UiText(
                 label,
                 style = MaterialTheme.typography.titleSmall,
                 color = if (selected) scheme.primary else scheme.onSurface,
             )
-            Text(
+            UiText(
                 sub,
                 style = MaterialTheme.typography.bodySmall,
                 color = scheme.onSurfaceVariant,

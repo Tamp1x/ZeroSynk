@@ -31,7 +31,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
+import androidx.compose.material3.Text as MaterialText
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -46,7 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextOverflow
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.zerosynk.app.clipboard.ClipboardSync
@@ -94,7 +94,7 @@ fun HomeScreen() {
             .padding(horizontal = 20.dp),
     ) {
         Spacer(Modifier.height(52.dp))
-        Text("Главная", style = MaterialTheme.typography.headlineLarge)
+        UiText("Главная", style = MaterialTheme.typography.headlineLarge)
         Spacer(Modifier.height(16.dp))
 
         // ---- status card ----
@@ -114,7 +114,7 @@ fun HomeScreen() {
                             .background(color, CircleShape),
                     )
                     Spacer(Modifier.width(10.dp))
-                    Text(
+                    UiText(
                         text = when {
                             !syncEnabled -> "Синхронизация остановлена"
                             conn is Conn.Connected -> "Подключено к ${(conn as Conn.Connected).pcName}"
@@ -128,7 +128,7 @@ fun HomeScreen() {
                 }
                 Spacer(Modifier.height(6.dp))
                 val address = prefs.host?.let { "$it:${prefs.port}" } ?: "—"
-                Text(
+                UiText(
                     text = when {
                         !syncEnabled -> "Синхронизация выключена — буфер и файлы не передаются"
                         conn is Conn.Connected -> "Адрес: $address"
@@ -160,7 +160,7 @@ fun HomeScreen() {
                         ButtonDefaults.buttonColors()
                     },
                 ) {
-                    Text(if (syncEnabled) "Остановить синхронизацию" else "Запустить синхронизацию")
+                    UiText(if (syncEnabled) "Остановить синхронизацию" else "Запустить синхронизацию")
                 }
 
                 if (prefs.syncEnabled && conn !is Conn.Connected && prefs.paired) {
@@ -169,7 +169,7 @@ fun HomeScreen() {
                         onClick = { SyncService.start(context) },
                         shape = RoundedCornerShape(10.dp),
                     ) {
-                        Text("Повторить подключение")
+                        UiText("Повторить подключение")
                     }
                 }
             }
@@ -210,7 +210,7 @@ fun HomeScreen() {
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Text("Отправить буфер на ПК")
+                    UiText("Отправить буфер на ПК")
                 }
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(
@@ -218,7 +218,7 @@ fun HomeScreen() {
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Text("Отправить файл на ПК")
+                    UiText("Отправить файл на ПК")
                 }
             }
         }
@@ -251,7 +251,7 @@ fun HomeScreen() {
                             },
                         )
                     }
-                    Text(
+                    UiText(
                         "Тап — копировать, долгий тап — отправить на ПК",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -266,9 +266,9 @@ fun HomeScreen() {
         // ---- background clipboard hint ----
         SectionCard {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Буфер в фоновом режиме", style = MaterialTheme.typography.titleSmall)
+                UiText("Буфер в фоновом режиме", style = MaterialTheme.typography.titleSmall)
                 Spacer(Modifier.height(6.dp))
-                Text(
+                UiText(
                     "Когда приложение открыто, копирование синхронизируется автоматически. " +
                         "В фоне Android запрещает приложениям читать буфер — поэтому в уведомлении $appLabel " +
                         "есть кнопка «Отправить буфер»: скопируйте текст и нажмите её — он мгновенно уйдёт на ПК. " +
@@ -284,7 +284,7 @@ fun HomeScreen() {
             Spacer(Modifier.height(14.dp))
             SectionCard(title = if (Xiaomi.isXiaomi) "Xiaomi / HyperOS" else "Стабильность в фоне") {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                    Text(
+                    UiText(
                         "Чтобы $appLabel работал в фоне без обрывов, разрешите автозапуск и отключите ограничения батареи.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -323,7 +323,7 @@ fun HomeScreen() {
 @Composable
 private fun GuideButton(text: String, onClick: () -> Unit) {
     TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
-        Text(text, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyMedium)
+        UiText(text, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -337,7 +337,7 @@ private fun ClipHistoryRow(
     onLongTap: () -> Unit,
 ) {
     val label = if (entry.kind == "image") "🖼 ${entry.text}" else entry.text
-    Text(
+    UiText(
         text = label,
         style = MaterialTheme.typography.bodyMedium,
         maxLines = 1,
@@ -367,7 +367,7 @@ private fun NowPlayingCard(media: MediaInfo, context: Context) {
                     Spacer(Modifier.width(12.dp))
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(
+                    UiText(
                         text = media.title,
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 1,
@@ -377,7 +377,7 @@ private fun NowPlayingCard(media: MediaInfo, context: Context) {
                         .filter { it.isNotBlank() }
                         .joinToString(" — ")
                     if (sub.isNotEmpty()) {
-                        Text(
+                        UiText(
                             text = sub,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -400,13 +400,13 @@ private fun NowPlayingCard(media: MediaInfo, context: Context) {
                 )
                 Spacer(Modifier.height(4.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    Text(
+                    UiText(
                         text = fmtTime(media.position),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.weight(1f))
-                    Text(
+                    UiText(
                         text = fmtTime(media.duration),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -454,7 +454,7 @@ private fun MediaCmd(label: String, context: Context, action: String, modifier: 
         shape = RoundedCornerShape(10.dp),
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
     ) {
-        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+        UiText(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
 }
 
