@@ -41,7 +41,9 @@ public partial class SettingsPage : System.Windows.Controls.UserControl
         RowNotifications.IsOn = s.ShowNotifications;
         FolderBox.Text = s.SaveFolder;
         PortBox.Text = s.Port.ToString();
-        PwBox.Text = s.TransferPassword;
+        // Password lives in the masked PasswordBox; the plain TextBox mirrors it only while visible.
+        PwBox.Password = s.TransferPassword;
+        PwPlainBox.Text = s.TransferPassword;
         PasswordHint.Text = string.IsNullOrEmpty(s.TransferPassword)
             ? "Пароль не задан — доступ только по токену."
             : "Пароль задан — введите его в настройках телефона.";
@@ -69,7 +71,7 @@ public partial class SettingsPage : System.Windows.Controls.UserControl
         if (!DesignZero.IsChecked.GetValueOrDefault() && !DesignOnyx.IsChecked.GetValueOrDefault() && !DesignEclipx.IsChecked.GetValueOrDefault())
             DesignZero.IsChecked = true;
 
-        AboutTitle.Text = $"{DesignService.Current} 1.4.0";
+        AboutTitle.Text = $"{DesignService.Current} 1.7.0";
     }
 
     private void OnToggle(object sender, RoutedEventArgs e)
@@ -162,10 +164,31 @@ public partial class SettingsPage : System.Windows.Controls.UserControl
         }
     }
 
+    /// <summary>Shows/hides the password: swaps the masked PasswordBox for a plain TextBox (p. 18).</summary>
+    private void OnTogglePwVisibility(object sender, RoutedEventArgs e)
+    {
+        var visible = PwEye.IsChecked == true;
+        if (visible)
+        {
+            PwPlainBox.Text = PwBox.Password;
+            PwBox.Visibility = Visibility.Collapsed;
+            PwPlainBox.Visibility = Visibility.Visible;
+            PwPlainBox.Focus();
+        }
+        else
+        {
+            PwBox.Password = PwPlainBox.Text;
+            PwPlainBox.Visibility = Visibility.Collapsed;
+            PwBox.Visibility = Visibility.Visible;
+            PwBox.Focus();
+        }
+        PwEyeSlash.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     /// <summary>Saves the session password (p. 18); empty turns the check off.</summary>
     private void OnApplyPassword(object sender, RoutedEventArgs e)
     {
-        var pw = PwBox.Text.Trim();
+        var pw = (PwEye.IsChecked == true ? PwPlainBox.Text : PwBox.Password).Trim();
         App.Settings.TransferPassword = pw;
         _controller.SaveSettings();
         PasswordHint.Text = pw.Length == 0
@@ -232,7 +255,7 @@ public partial class SettingsPage : System.Windows.Controls.UserControl
             : DesignOnyx.IsChecked == true ? "onyx"
             : "zero";
         _controller.SetDesign(design);
-        AboutTitle.Text = $"{DesignService.Current} 1.4.0";
+        AboutTitle.Text = $"{DesignService.Current} 1.7.0";
         PortHint.Text = "Дизайн применён — он обновился на ПК и на телефоне.";
     }
 

@@ -58,16 +58,21 @@ cd android
 .\gradlew assembleRelease --no-daemon
 # APK: android\app\build\outputs\apk\release\app-release.apk
 # Copy versioned release APK beside the previous releases:
-Copy-Item app\build\outputs\apk\release\app-release.apk ..\ZeroSynk-1.6.0.apk
+Copy-Item app\build\outputs\apk\release\app-release.apk ..\ZeroSynk-1.7.0.apk
 ```
 
 Release signing reads `android/keystore.properties` + `android/keystore/` (deliberately not in git). Without them the build falls back to the debug signature.
 
 ### Windows installer release assets
 ```powershell
+# First publish the current Windows app to publish-fd (this is the build used for the portable ZIP).
+dotnet publish "pc\ZeroSynk\ZeroSynk.csproj" -c Release -r win-x64 `
+  --self-contained false -p:PublishSingleFile=true -o publish-fd
+
+# Then package that exact ZeroSynk.exe into the portable ZIP and build the setup program.
 .\tools\build-installer.ps1
 ```
-Upload `release-assets\ZeroSynk-Setup.exe` and `release-assets\ZeroSynk-Windows-x64.zip` to each GitHub Release. The setup fetches the package from the latest published release, verifies GitHub's SHA-256 digest when available, installs it per-user, and creates a Start menu shortcut. It installs the .NET 8 Desktop Runtime once if it is missing. Upload the Android APK separately as `ZeroSynk-<version>.apk`.
+Upload `release-assets\ZeroSynk-Setup.exe` and `release-assets\ZeroSynk-Windows-x64.zip` to each GitHub Release. The setup fetches that ZIP from the latest published release, verifies GitHub's SHA-256 digest when available, installs it per-user, and creates a Start menu shortcut. It installs the .NET 8 Desktop Runtime once if it is missing. The ZIP is also the portable version: extract it and run `ZeroSynk.exe`; portable users need the .NET 8 Desktop Runtime. The ZIP contains the latest app executable built in `publish-fd`, where the app's startup behavior is already configured. Users do not need to download the ZIP separately when using the installer. Upload the Android APK separately as `ZeroSynk-<version>.apk`.
 
 ### Tests
 ```powershell
@@ -104,6 +109,7 @@ Media messages are bidirectional: `media` carries `state`, `title`, `artist`, `a
 
 | Version | Highlights |
 |---|---|
+| 1.7.0 | Password fields hidden as dots with an eye toggle on phone and PC |
 | 1.6.0 | Android history, widget, Quick Settings tile, screenshot sync, English locale, APK updater; Windows 11 modern context menu |
 | 1.5.0 | Rounded QR-code corners in the Windows app |
 | 1.4.0 | Explorer context menu, dark tray, pill-dock, multi-photo send, auto-cleanup |

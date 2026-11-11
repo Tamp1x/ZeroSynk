@@ -8,6 +8,7 @@
 # Build outputs
 build/
 publish-fd/
+publish-fd-update/
 publish-sc/
 /release-assets/
 /ZeroSynk-Setup.exe

@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,13 +15,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -34,7 +38,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import com.zerosynk.app.BuildConfig
@@ -89,6 +100,7 @@ fun SettingsScreen(onRepaired: () -> Unit, onLanguageChanged: (Boolean) -> Unit 
     var saveFolderLabel by remember { mutableStateOf(SaveFolder.statusLabel(context)) }
     var saveFolderCustom by remember { mutableStateOf(SaveFolder.isCustom(context)) }
     var pwText by remember { mutableStateOf(prefs.transferPassword ?: "") }
+    var pwVisible by remember { mutableStateOf(false) }
     val design by Design.flow.collectAsState()
 
     // SAF folder picker: choose where files sent from the PC are saved.
@@ -152,12 +164,24 @@ fun SettingsScreen(onRepaired: () -> Unit, onLanguageChanged: (Boolean) -> Unit 
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 // Session password from the PC (p. 18): normally delivered by QR/PIN,
                 // editable here when it was set on the PC after pairing.
+                // Shown as dots by default; the eye reveals it (p. 18-style toggle).
                 OutlinedTextField(
                     value = pwText,
                     onValueChange = { pwText = it },
                     label = { UiText("Пароль на передачу") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = if (pwVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    trailingIcon = {
+                        IconButton(onClick = { pwVisible = !pwVisible }) {
+                            PasswordEyeIcon(visible = pwVisible)
+                        }
+                    },
                 )
                 UiText(
                     "Пусто — без пароля. Пароль задаётся на ПК и приходит вместе с подключением.",
@@ -611,6 +635,39 @@ fun SettingsScreen(onRepaired: () -> Unit, onLanguageChanged: (Boolean) -> Unit 
         }
 
         Spacer(Modifier.height(110.dp))
+    }
+}
+
+/**
+ * Eye toggle for password fields — material-icons-core has no Visibility glyph,
+ * so it's drawn here: open eye when the password is hidden (tap to reveal),
+ * crossed-out eye when it's shown (tap to hide).
+ */
+@Composable
+private fun PasswordEyeIcon(visible: Boolean, modifier: Modifier = Modifier) {
+    val tint = MaterialTheme.colorScheme.onSurfaceVariant
+    Canvas(modifier.size(22.dp)) {
+        val stroke = Stroke(width = 1.8f, cap = StrokeCap.Round)
+        // Lens: two symmetric quadratics meeting at the corners.
+        val eye = Path().apply {
+            moveTo(2f, 12f)
+            quadraticTo(12f, 3.5f, 22f, 12f)
+            quadraticTo(12f, 20.5f, 2f, 12f)
+            close()
+        }
+        drawPath(eye, tint, style = stroke)
+        // Pupil.
+        drawCircle(tint, radius = 3.4f, center = Offset(12f, 12f))
+        if (visible) {
+            // Slash — "currently visible, tap to hide".
+            drawLine(
+                tint,
+                start = Offset(3.5f, 20.5f),
+                end = Offset(20.5f, 3.5f),
+                strokeWidth = 1.8f,
+                cap = StrokeCap.Round,
+            )
+        }
     }
 }
 

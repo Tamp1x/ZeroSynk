@@ -3,8 +3,9 @@ param([string]$Configuration = "Release")
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $appProject = Join-Path $repoRoot "pc\ZeroSynk\ZeroSynk.csproj"
+$shellProject = Join-Path $repoRoot "pc\ZeroSynk.ShellExtension\ZeroSynk.ShellExtension.csproj"
 $setupProject = Join-Path $repoRoot "tools\installer\ZeroSynk.Setup.csproj"
-$appOutput = Join-Path $repoRoot "pc\ZeroSynk\bin\$Configuration\net8.0-windows10.0.19041.0\win-x64\publish"
+$portableOutput = Join-Path $repoRoot "publish-fd"
 $shellOutput = Join-Path $repoRoot "pc\ZeroSynk.ShellExtension\bin\$Configuration\net8.0-windows"
 $artifacts = Join-Path $repoRoot "release-assets"
 $stage = Join-Path $env:TEMP ("zerosynk-package-" + [guid]::NewGuid().ToString("N"))
@@ -15,10 +16,14 @@ $setupExe = Join-Path $artifacts "ZeroSynk-Setup.exe"
 
 try {
     New-Item -ItemType Directory -Force $payload, $artifacts | Out-Null
-    Write-Host "Publishing ZeroSynk for Windows x64..."
-    dotnet publish $appProject -c $Configuration -r win-x64 --self-contained false `
-        -p:PublishSingleFile=false -o $payload
-    if ($LASTEXITCODE -ne 0) { throw "Windows app publish failed." }
+    $portableExe = Join-Path $portableOutput "ZeroSynk.exe"
+    if (-not (Test-Path -LiteralPath $portableExe)) {
+        throw "The latest ZeroSynk.exe was not found in publish-fd. Build it there first using the README command."
+    }
+    Copy-Item -LiteralPath $portableExe -Destination $payload -Force
+
+    dotnet build $shellProject -c $Configuration
+    if ($LASTEXITCODE -ne 0) { throw "Explorer shell extension build failed." }
 
     $shellFiles = @(
         "ZeroSynk.ShellExtension.comhost.dll",

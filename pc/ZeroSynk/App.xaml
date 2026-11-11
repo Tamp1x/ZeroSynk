@@ -200,6 +200,28 @@
                 </Setter>
             </Style>
 
+            <!-- PasswordBox — same look as InputBox (password field, masked as dots) -->
+            <Style x:Key="InputBoxPw" TargetType="PasswordBox">
+                <Setter Property="Background" Value="{DynamicResource InputBg}"/>
+                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                <Setter Property="FontSize" Value="13.5"/>
+                <Setter Property="Padding" Value="12,9"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="PasswordChar" Value="●"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <!-- No Padding on the Border: WPF PasswordBox pushes Padding into its
+                             PART_ContentHost ScrollViewer itself (see PasswordBox.OnPaddingChanged),
+                             so binding it on the Border too would double the indent. -->
+                        <ControlTemplate TargetType="PasswordBox">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="10">
+                                <ScrollViewer x:Name="PART_ContentHost" BorderThickness="0" Background="Transparent"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <!-- Separator inside cards -->
             <Style x:Key="SepStyle" TargetType="Separator">
                 <Setter Property="Background" Value="{DynamicResource SeparatorBrush}"/>

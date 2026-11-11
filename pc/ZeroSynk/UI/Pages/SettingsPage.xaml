@@ -155,9 +155,34 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBox x:Name="PwBox" Grid.Column="0" Style="{StaticResource InputBox}"
-                                 VerticalContentAlignment="Center" MinHeight="40" MaxLength="64"
-                                 HorizontalAlignment="Stretch"/>
+                        <!-- Masked PasswordBox by default; the eye swaps in a plain TextBox. -->
+                        <Grid Grid.Column="0">
+                            <PasswordBox x:Name="PwBox" Style="{StaticResource InputBoxPw}"
+                                         VerticalContentAlignment="Center" MinHeight="40" MaxLength="64"
+                                         Padding="12,9,44,9" HorizontalAlignment="Stretch"/>
+                            <TextBox x:Name="PwPlainBox" Style="{StaticResource InputBox}"
+                                     VerticalContentAlignment="Center" MinHeight="40" MaxLength="64"
+                                     Padding="12,9,44,9" HorizontalAlignment="Stretch" Visibility="Collapsed"/>
+                            <ToggleButton x:Name="PwEye" Click="OnTogglePwVisibility"
+                                          HorizontalAlignment="Right" VerticalAlignment="Center"
+                                          Margin="0,0,6,0" Width="32" Height="32"
+                                          Background="Transparent" BorderThickness="0"
+                                          Cursor="Hand" Focusable="False" ToolTip="Показать/скрыть пароль">
+                                <Viewbox Width="20" Height="20" Stretch="Uniform">
+                                    <Canvas Width="24" Height="24">
+                                        <Path Data="M1,12 C4,6.5 7.7,4.5 12,4.5 C16.3,4.5 20,6.5 23,12 C20,17.5 16.3,19.5 12,19.5 C7.7,19.5 4,17.5 1,12 Z"
+                                              Stroke="{DynamicResource TextTertiary}" StrokeThickness="1.6"
+                                              StrokeLineJoin="Round" Fill="Transparent"/>
+                                        <Ellipse Canvas.Left="8.8" Canvas.Top="8.8" Width="6.4" Height="6.4"
+                                                 Fill="{DynamicResource TextTertiary}"/>
+                                        <Line x:Name="PwEyeSlash" X1="4" Y1="20" X2="20" Y2="4"
+                                              Stroke="{DynamicResource TextTertiary}" StrokeThickness="1.8"
+                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                              Visibility="Collapsed"/>
+                                    </Canvas>
+                                </Viewbox>
+                            </ToggleButton>
+                        </Grid>
                         <Button Grid.Column="1" Style="{StaticResource SecondaryButton}" Content="Сохранить"
                                 Margin="10,0,0,0" Click="OnApplyPassword"/>
                     </Grid>
@@ -199,7 +224,7 @@
             <TextBlock Text="О программе" Style="{StaticResource SectionHeader}" Margin="4,12,0,8"/>
             <Border Style="{StaticResource Card}">
                 <StackPanel>
-                    <TextBlock x:Name="AboutTitle" Text="ZeroSynk 1.4.0" Style="{StaticResource H2}"/>
+                    <TextBlock x:Name="AboutTitle" Text="ZeroSynk 1.7.0" Style="{StaticResource H2}"/>
                     <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0"
                                Text="Синхронизация буфера обмена и файлов по локальной сети/Tailscale. Трафик шифруется Tailscale, авторизация — токеном."/>
                     <StackPanel Orientation="Horizontal" Margin="0,14,0,0">

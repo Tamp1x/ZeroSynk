@@ -10,7 +10,7 @@
     <AssemblyName>ZeroSynk</AssemblyName>
     <RootNamespace>ZeroSynk</RootNamespace>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <Version>1.6.0</Version>
+    <Version>1.7.0</Version>
     <Product>ZeroSynk</Product>
     <Description>Clipboard and file sync between PC and phone over local network</Description>
     <ApplicationManifest>app.manifest</ApplicationManifest>
