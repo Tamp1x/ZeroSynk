@@ -27,6 +27,7 @@ try {
 
     $shellFiles = @(
         "ZeroSynk.ShellExtension.comhost.dll",
+        "ZeroSynk.ShellExtension.dll",
         "ZeroSynk.ShellExtension.deps.json",
         "ZeroSynk.ShellExtension.runtimeconfig.json"
     )
